@@ -1,26 +1,62 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:go_router/go_router.dart';
 import 'login.dart';
 import 'lists.dart';
 
 void main() {
+  print("main");
   runApp(MyApp());
 }
+
+final router = GoRouter(
+   routes: [
+     GoRoute(
+       path: '/',
+       builder: (_, __) => Scaffold(
+         appBar: AppBar(title: const Text('Home Screen')),
+       ),
+       routes: [
+         GoRoute(
+           path: 'details',
+           builder: (_, __) => Scaffold(
+             appBar: AppBar(title: const Text('Details Screen')),
+           ),
+         ),
+       ],
+     ),
+   ],
+ );
 
 void deleteUserId() async {
   final storage = FlutterSecureStorage();
   await storage.delete(key: 'userId');
+  print("deleteUserId");
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
+  @override
+  _MyAppState createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
   final storage = FlutterSecureStorage();
+
+  late Future<bool> _loggedInFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _loggedInFuture = _checkLoggedIn();
+  }
 
   @override
   Widget build(BuildContext context) {
+    print("build1");
     return MaterialApp(
       title: 'Login App',
       home: FutureBuilder(
-        future: _checkLoggedIn(),
+        future: _loggedInFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Scaffold(
@@ -34,14 +70,15 @@ class MyApp extends StatelessWidget {
               return MainApp();
             } else {
               // User is not logged in, navigate to the login page
-              WidgetsBinding.instance.addPostFrameCallback((_) {
+              WidgetsBinding.instance!.addPostFrameCallback((_) {
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                      builder: (context) =>
-                          LoginPage()), // Use LoginPage from login.dart
+                    builder: (context) => LoginPage(),
+                  ),
                 );
               });
+              print("build2");
               return Container(); // Placeholder while navigating
             }
           }
@@ -51,10 +88,16 @@ class MyApp extends StatelessWidget {
   }
 
   Future<bool> _checkLoggedIn() async {
+  print("_checkLoggedIn");
+  try {
     final userId = await storage.read(key: 'userId');
     print('User ID from secure storage1: $userId');
     return userId != null;
+  } catch (e) {
+    print('Error checking login status: $e');
+    return false; // Return false in case of any error
   }
+}
 }
 
 class MainApp extends StatefulWidget {
@@ -64,22 +107,25 @@ class MainApp extends StatefulWidget {
 
 class _MainAppState extends State<MainApp> {
   int _selectedIndex = 0;
-  String? userId; // Declare userId as a class member
+  String? userId;
 
   @override
   void initState() {
+    print("initState");
     super.initState();
-    _loadUserId(); // Load userId when MainApp is initialized
+    _loadUserId();
   }
 
   Future<void> _loadUserId() async {
+    print("_loadUserId");
     final storage = FlutterSecureStorage();
     userId = await storage.read(key: 'userId');
-    setState(() {}); // Trigger rebuild to reflect userId changes
+    setState(() {});
   }
 
   // Function to handle logout
   void _logout(BuildContext context) async {
+    print("_logout");
     deleteUserId(); // Clear user ID from secure storage
     Navigator.pushReplacement(
       context,
@@ -112,10 +158,6 @@ class _MainAppState extends State<MainApp> {
             icon: Icon(Icons.group),
             label: 'Group lists',
           ),
-          // BottomNavigationBarItem(
-          //   icon: Icon(Icons.place),
-          //   label: 'stuff',
-          // ),
         ],
         currentIndex: _selectedIndex,
         onTap: (index) {

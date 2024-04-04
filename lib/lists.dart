@@ -3,6 +3,7 @@ import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'listitempage.dart';
+import 'UserListPage.dart';
 
 class MyLists extends StatefulWidget {
   final String userId;
@@ -148,12 +149,16 @@ class _ListsPageState extends State<MyLists> {
       ),
       SlidableAction(
         onPressed: (context) {
-          // Placeholder action for sharing
-          // Implement sharing functionality here
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => UserListPage(userId: widget.userId, listId: list['id'].toString()),
+            ),
+          );
         },
         backgroundColor: Colors.blue,
         icon: Icons.share,
-      )
+      ),
     ];
   }
 

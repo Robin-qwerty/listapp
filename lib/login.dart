@@ -68,8 +68,16 @@ class _LoginPageState extends State<LoginPage> {
         });
       } else if (_isNumeric(responseBody)) {
         final userId = responseBody; // Assuming server returns the user ID as response
+        
+        // Print the response
+        print('Response from server: $responseBody');
+
         // Store user ID in secure storage
         await storage.write(key: 'userId', value: userId);
+
+        // Read the stored user ID from secure storage
+        final storedUserId = await storage.read(key: 'userId');
+        print('User ID stored in secure storage: $storedUserId');
         
         // Navigate to the main app when user is registered and logged in
         Navigator.pushReplacement(
