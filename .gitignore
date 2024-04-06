@@ -1,4 +1,5 @@
 mykeystore.jks
+/listapp_webapi-database/private/*
 
 # Miscellaneous
 *.class
