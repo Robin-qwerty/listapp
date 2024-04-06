@@ -23,21 +23,19 @@ if (isset($_POST['userId']) && isset($_POST['listId'])) {
                 $query = "INSERT INTO listgrouplink (owner, listid) VALUES (?, ?)";
                 $statement = $conn->prepare($query);
                 $statement->execute([$userId, $listId]);
-
-                $listGrouplinkId = $conn->lastInsertId();
             }
 
-            $query = "SELECT code FROM invite WHERE groupid = ?";
+            $query = "SELECT code FROM invite WHERE listid = ?";
             $statement = $conn->prepare($query);
-            $statement->execute([$listGrouplinkId]);
+            $statement->execute([$listId]);
             $existingCode = $statement->fetchColumn();
 
             if (!$existingCode) {
                 $code = generateUniqueCode();
 
-                $query = "INSERT INTO invite (groupid, code) VALUES (?, ?)";
+                $query = "INSERT INTO invite (listid, code) VALUES (?, ?)";
                 $statement = $conn->prepare($query);
-                $statement->execute([$listGrouplinkId, $code]);
+                $statement->execute([$listId, $code]);
             } else {
                 $code = $existingCode;
             }

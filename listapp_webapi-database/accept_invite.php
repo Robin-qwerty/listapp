@@ -58,7 +58,7 @@ function handleInviteAcceptance() {
         $invite = $statement->fetch(PDO::FETCH_ASSOC);
     
         if ($invite) {
-            $listId = $invite['groupid'];
+            $listId = $invite['listid'];
             
             $query = "SELECT id FROM listgrouplink WHERE listid = ?";
             $statement = $conn->prepare($query);

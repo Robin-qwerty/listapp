@@ -95,7 +95,7 @@ class _ListsPageState extends State<MyLists> {
       if (responseData['success'] == true) {
         messenger.showSnackBar(
           const SnackBar(
-            content: Text('Link generated successfully'),
+            content: Text('Group code generated successfully'),
             duration: Duration(seconds: 3),
           ),
         );

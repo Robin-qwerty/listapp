@@ -1,5 +1,5 @@
 mykeystore.jks
-listapp_webapi-database/private/dbconnect.php
+listapp_webapi-database/private/*
 
 # Miscellaneous
 *.class

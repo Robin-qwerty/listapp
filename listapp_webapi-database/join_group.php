@@ -19,13 +19,13 @@ if (isset($_POST['userId']) && isset($_POST['groupCode'])) {
             exit;
         }
 
-        $query = "SELECT groupid FROM invite WHERE code = ?";
+        $query = "SELECT listid FROM invite WHERE code = ?";
         $statement = $conn->prepare($query);
         $statement->execute([$groupCode]);
         $invite = $statement->fetch(PDO::FETCH_ASSOC);
 
         if ($invite) {
-            $groupId = $invite['groupid'];
+            $groupId = $invite['listid'];
 
             $query = "SELECT * FROM listgrouplink WHERE listid = ?";
             $statement = $conn->prepare($query);
@@ -50,7 +50,7 @@ if (isset($_POST['userId']) && isset($_POST['groupCode'])) {
                     echo json_encode(['message' => 'User is already a member of this group']);
                 }
             } else {
-                echo json_encode(['message' => 'Error: listgrouplink not found for groupid']);
+                echo json_encode(['message' => 'Error: listgrouplink not found for listid']);
             }
         } else {
             echo json_encode(['message' => 'Error: Group code not found or expired']);
