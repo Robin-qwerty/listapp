@@ -18,6 +18,11 @@ Here are some screenshot of the app.
     <img src="https://github.com/Robin-qwerty/listapp/assets/89701607/b187155e-a1bb-4961-b595-e828e4d680f8" alt="listapp-screenshot1" width="250"/>
     <img src="https://github.com/Robin-qwerty/listapp/assets/89701607/a5841936-3c37-40e0-a14f-d2975fa251c3" alt="listapp-screenshot2" width="250"/>
 </div>
+<div style="display: flex; justify-content: space-between;">
+     <img src="https://github.com/Robin-qwerty/listapp/assets/89701607/dabb19e2-4592-458a-8f98-150dc74fb644" alt="listapp-screenshot2" width="250"/>
+     <img src="https://github.com/Robin-qwerty/listapp/assets/89701607/aa88077b-a841-4d72-aed3-3faabeb60789" alt="listapp-screenshot2" width="250"/>
+     <img src="https://github.com/Robin-qwerty/listapp/assets/89701607/b6689c88-bb20-4ac2-8e23-4ab8dad04cb9" alt="listapp-screenshot2" width="250"/>
+</div>
 
 <br>
 
