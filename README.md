@@ -1,16 +1,26 @@
-# listapp
+# List App
 
-A new Flutter project.
+List App is a simple yet powerful mobile application developed using Flutter. It allows users to create, manage, and share lists effortlessly, making it perfect for organizing tasks, groceries, events, and more.
 
-## Getting Started
+## Features
 
-This project is a starting point for a Flutter application.
+- **Create Lists**: Easily create new lists for various purposes such as shopping, to-do tasks, or event planning.
+- **Manage Lists**: Edit, delete, and reorder items within lists for efficient organization.
+- **Share Lists**: Share lists with friends, family, or colleagues via email, messaging apps, or social media platforms.
+- **User Authentication**: Secure user authentication ensures data privacy and personalized list management.
+ 
+## Screenshots
 
-A few resources to get you started if this is your first Flutter project:
+Here are some screenshot of the app.
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+<div style="display: flex; justify-content: space-between;">
+    <img src="https://github.com/Robin-qwerty/listapp/assets/89701607/862d5fad-37bb-4611-b79b-fb7230a05438" alt="listapp-screenshot3" width="250"/>
+    <img src="https://github.com/Robin-qwerty/listapp/assets/89701607/b187155e-a1bb-4961-b595-e828e4d680f8" alt="listapp-screenshot1" width="250"/>
+    <img src="https://github.com/Robin-qwerty/listapp/assets/89701607/a5841936-3c37-40e0-a14f-d2975fa251c3" alt="listapp-screenshot2" width="250"/>
+</div>
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+<br>
+
+## Pre-release
+
+A pre-release version of List App is available in the repository. You can access it [here](https://github.com/Robin-qwerty/listapp/releases).
