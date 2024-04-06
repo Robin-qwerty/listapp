@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost
--- Gegenereerd op: 03 apr 2024 om 21:42
+-- Gegenereerd op: 05 apr 2024 om 21:08
 -- Serverversie: 10.11.3-MariaDB
 -- PHP-versie: 8.2.6
 
@@ -20,6 +20,18 @@ SET time_zone = "+00:00";
 --
 -- Database: `listapp`
 --
+
+-- --------------------------------------------------------
+
+--
+-- Tabelstructuur voor tabel `invite`
+--
+
+CREATE TABLE `invite` (
+  `id` int(11) NOT NULL,
+  `groupid` int(11) NOT NULL,
+  `code` varchar(255) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -47,7 +59,12 @@ INSERT INTO `items` (`id`, `list-id`, `item_name`, `archive`) VALUES
 (9, 14, 'dgn vc', 0),
 (10, 21, 'dvd ', 0),
 (11, 11, 'dydu', 1),
-(12, 11, 'd d dbyndv', 1);
+(12, 11, 'd d dbyndv', 2),
+(13, 29, 'kaas', 0),
+(14, 29, 'melk 2x', 0),
+(15, 29, 'pasta', 2),
+(16, 30, 'melk', 0),
+(17, 30, 'brood', 0);
 
 -- --------------------------------------------------------
 
@@ -57,10 +74,35 @@ INSERT INTO `items` (`id`, `list-id`, `item_name`, `archive`) VALUES
 
 CREATE TABLE `listgroup` (
   `id` int(11) NOT NULL,
-  `owner` int(11) NOT NULL,
-  `name` varchar(255) NOT NULL,
-  `password` varchar(255) NOT NULL
+  `userid` int(11) NOT NULL,
+  `listgrouplinkid` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Gegevens worden geëxporteerd voor tabel `listgroup`
+--
+
+INSERT INTO `listgroup` (`id`, `userid`, `listgrouplinkid`) VALUES
+(1, 2, 1);
+
+-- --------------------------------------------------------
+
+--
+-- Tabelstructuur voor tabel `listgrouplink`
+--
+
+CREATE TABLE `listgrouplink` (
+  `id` int(11) NOT NULL,
+  `owner` int(11) NOT NULL,
+  `listid` int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Gegevens worden geëxporteerd voor tabel `listgrouplink`
+--
+
+INSERT INTO `listgrouplink` (`id`, `owner`, `listid`) VALUES
+(1, 2, 32);
 
 -- --------------------------------------------------------
 
@@ -90,7 +132,11 @@ INSERT INTO `lists` (`id`, `userid`, `listgroup_id`, `name`, `archive`) VALUES
 (9, 0, 0, 'Fruitschaal', 0),
 (11, 1, NULL, 'test lijstje', 0),
 (20, 1, NULL, 'Delete list test 2', 0),
-(21, 1, NULL, 'edit list name test', 0);
+(21, 1, NULL, 'edit list name test', 0),
+(29, 2, NULL, 'boodschappen ', 0),
+(30, 3, NULL, 'boodschappen', 0),
+(31, 3, NULL, 'verlanglijstje', 0),
+(32, 1, NULL, 'share list test', 0);
 
 -- --------------------------------------------------------
 
@@ -142,7 +188,9 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`userid`, `username`, `password`, `archive`, `created_at`, `edited_at`, `deleted_at`) VALUES
-(1, 'test', '$2y$10$nlmFlzhEpSNck66WlFJnPuB2ygJM7asHzPZUU1TapIjp3Wg8wrbmu', 0, '2024-04-03 12:21:53', '2024-04-03 12:21:53', NULL);
+(1, 'test', '$2y$10$nlmFlzhEpSNck66WlFJnPuB2ygJM7asHzPZUU1TapIjp3Wg8wrbmu', 0, '2024-04-03 12:21:53', '2024-04-03 12:21:53', NULL),
+(2, 'testuser', '$2y$10$0iexwokvGZHZkfxjzQbNP.zx5LtzozzWG4ZJsXAy1ilDY4HMkZcaS', 0, '2024-04-04 08:25:53', '2024-04-04 08:25:53', NULL),
+(3, 'Suzanne', '$2y$10$dQIYVJzeeC1R6oEaRCTQeuZgj05BjOk8tKfr.HH.rTjX0CYGf6m0G', 0, '2024-04-04 08:30:09', '2024-04-04 08:30:09', NULL);
 
 --
 -- Indexen voor geëxporteerde tabellen
@@ -161,6 +209,12 @@ ALTER TABLE `listgroup`
   ADD PRIMARY KEY (`id`);
 
 --
+-- Indexen voor tabel `listgrouplink`
+--
+ALTER TABLE `listgrouplink`
+  ADD PRIMARY KEY (`id`);
+
+--
 -- Indexen voor tabel `lists`
 --
 ALTER TABLE `lists`
@@ -173,6 +227,12 @@ ALTER TABLE `tasks`
   ADD PRIMARY KEY (`id`);
 
 --
+-- Indexen voor tabel `users`
+--
+ALTER TABLE `users`
+  ADD PRIMARY KEY (`userid`);
+
+--
 -- AUTO_INCREMENT voor geëxporteerde tabellen
 --
 
@@ -180,25 +240,37 @@ ALTER TABLE `tasks`
 -- AUTO_INCREMENT voor een tabel `items`
 --
 ALTER TABLE `items`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
 
 --
 -- AUTO_INCREMENT voor een tabel `listgroup`
 --
 ALTER TABLE `listgroup`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+--
+-- AUTO_INCREMENT voor een tabel `listgrouplink`
+--
+ALTER TABLE `listgrouplink`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT voor een tabel `lists`
 --
 ALTER TABLE `lists`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=29;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=33;
 
 --
 -- AUTO_INCREMENT voor een tabel `tasks`
 --
 ALTER TABLE `tasks`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
+
+--
+-- AUTO_INCREMENT voor een tabel `users`
+--
+ALTER TABLE `users`
+  MODIFY `userid` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

@@ -1,6 +1,7 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'dart:async';
+import 'dart:convert';
 
 class UserListPage extends StatefulWidget {
   final String userId;
@@ -15,6 +16,7 @@ class UserListPage extends StatefulWidget {
 class _UserListPageState extends State<UserListPage> {
   List<dynamic> users = [];
   List<dynamic> filteredUsers = [];
+  bool isLoading = false;
 
   @override
   void initState() {
@@ -23,6 +25,10 @@ class _UserListPageState extends State<UserListPage> {
   }
 
   Future<void> fetchUsers() async {
+    setState(() {
+      isLoading = true;
+    });
+
     final response = await http.post(
       Uri.parse('https://robin.humilis.net/flutter/listapp/get_users.php'),
       body: {'userId': widget.userId, 'listId': widget.listId},
@@ -30,9 +36,13 @@ class _UserListPageState extends State<UserListPage> {
 
     if (response.statusCode == 200) {
       setState(() {
+        isLoading = false;
         users = filteredUsers = jsonDecode(response.body);
       });
     } else {
+      setState(() {
+        isLoading = false;
+      });
       throw Exception('Failed to fetch users');
     }
   }
@@ -43,6 +53,43 @@ class _UserListPageState extends State<UserListPage> {
           .where((user) =>
               user['username'].toLowerCase().contains(query.toLowerCase()))
           .toList();
+    });
+  }
+
+  Future<void> shareList(String inviteUserId) async {
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() {
+      isLoading = true;
+    });
+
+    final response = await http.post(
+      Uri.parse('https://robin.humilis.net/flutter/listapp/share_list.php'),
+      body: {
+        'userId': widget.userId,
+        'listId': widget.listId,
+        'inviteUserId': inviteUserId,
+      },
+    );
+
+    if (response.statusCode == 200) {
+      print('Response: ${response.body}');
+      final responseData = jsonDecode(response.body); // Decode JSON response
+      if (responseData['message'] == 'List shared successfully') {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('List shared successfully'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+
+        Navigator.pop(context, true); // Pass true indicating success
+      }
+    } else {
+      print('Failed to send share list request');
+    }
+
+    setState(() {
+      isLoading = false;
     });
   }
 
@@ -65,31 +112,18 @@ class _UserListPageState extends State<UserListPage> {
             ),
           ),
           Expanded(
-            child: ListView.builder(
-              itemCount: filteredUsers.length,
-              itemBuilder: (context, index) {
-                final user = filteredUsers[index];
-                return ListTile(
-                  title: Text(user['username']),
-                  onTap: () async {
-                    final response = await http.post(
-                      Uri.parse('https://robin.humilis.net/flutter/listapp/share_list.php'),
-                      body: {
-                        'userId': widget.userId,
-                        'listId': widget.listId,
-                        'inviteUserId': user['userid'].toString(), // Use user variable here
-                      },
-                    );
-                    if (response.statusCode == 200) {
-                      print('Share list request sent');
-                      print('Response: ${response.body}');
-                    } else {
-                      print('Failed to send share list request');
-                    }
-                  },
-                );
-              },
-            ),
+            child: isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : ListView.builder(
+                    itemCount: filteredUsers.length,
+                    itemBuilder: (context, index) {
+                      final user = filteredUsers[index];
+                      return ListTile(
+                        title: Text(user['username']),
+                        onTap: () => shareList(user['userid'].toString()),
+                      );
+                    },
+                  ),
           ),
         ],
       ),

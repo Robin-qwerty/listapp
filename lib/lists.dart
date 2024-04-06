@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'listitempage.dart';
@@ -54,7 +54,8 @@ class _ListsPageState extends State<MyLists> {
     }
   }
 
-  List<Widget> _buildSlidableActions(BuildContext context, Map<String, dynamic> list) {
+  List<Widget> _buildSlidableActions(
+      BuildContext context, Map<String, dynamic> list) {
     return [
       SlidableAction(
         onPressed: (context) async {
@@ -62,12 +63,14 @@ class _ListsPageState extends State<MyLists> {
           String? editedName = await showDialog(
             context: context,
             builder: (context) {
-              TextEditingController _editListNameController = TextEditingController(text: list['name']);
+              TextEditingController _editListNameController =
+                  TextEditingController(text: list['name']);
               return AlertDialog(
                 title: const Text('Edit List Name'),
                 content: TextField(
                   controller: _editListNameController,
-                  decoration: const InputDecoration(hintText: 'Enter List Name'),
+                  decoration:
+                      const InputDecoration(hintText: 'Enter List Name'),
                 ),
                 actions: [
                   TextButton(
@@ -88,8 +91,13 @@ class _ListsPageState extends State<MyLists> {
           if (editedName != null && editedName.isNotEmpty) {
             // Send a web request to update the list name
             final response = await http.post(
-              Uri.parse('https://robin.humilis.net/flutter/listapp/update_list.php'),
-              body: {'userId': widget.userId, 'listId': list['id'].toString(), 'listName': editedName},
+              Uri.parse(
+                  'https://robin.humilis.net/flutter/listapp/update_list.php'),
+              body: {
+                'userId': widget.userId,
+                'listId': list['id'].toString(),
+                'listName': editedName
+              },
             );
             if (response.statusCode == 200) {
               // Refresh the list after updating the list name
@@ -131,13 +139,13 @@ class _ListsPageState extends State<MyLists> {
           if (confirmDelete == true) {
             // Send a web request to delete the list
             final response = await http.post(
-              Uri.parse('https://robin.humilis.net/flutter/listapp/delete_list.php'),
+              Uri.parse(
+                  'https://robin.humilis.net/flutter/listapp/delete_list.php'),
               body: {'userId': widget.userId, 'listId': list['id'].toString()},
             );
             if (response.statusCode == 200) {
               // Refresh the list after deleting the list
               setState(() {});
-              // Print the response body
               print('Response: ${response.body}');
             } else {
               throw Exception('Failed to delete list');
@@ -152,9 +160,20 @@ class _ListsPageState extends State<MyLists> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => UserListPage(userId: widget.userId, listId: list['id'].toString()),
+              builder: (context) => UserListPage(
+                  userId: widget.userId, listId: list['id'].toString()),
             ),
-          );
+          ).then((success) {
+            if (success == true) {
+              // Show a SnackBar indicating success on returning from UserListPage
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('List shared successfully'),
+                  duration: Duration(seconds: 3),
+                ),
+              );
+            }
+          });
         },
         backgroundColor: Colors.blue,
         icon: Icons.share,
@@ -183,7 +202,8 @@ class _ListsPageState extends State<MyLists> {
                     content: TextField(
                       controller: _listNameController,
                       focusNode: _listNameFocusNode,
-                      decoration: const InputDecoration(hintText: 'Enter List Name'),
+                      decoration:
+                          const InputDecoration(hintText: 'Enter List Name'),
                       onChanged: (value) {
                         setState(() {});
                       },
@@ -259,11 +279,13 @@ class _ListsPageState extends State<MyLists> {
                         ),
                         child: Card(
                           elevation: 3,
-                          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                          margin: const EdgeInsets.symmetric(
+                              vertical: 8, horizontal: 16),
                           child: ListTile(
                             title: Text(
                               list['name'].toString(),
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold),
                             ),
                             onTap: () {
                               Navigator.push(

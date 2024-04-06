@@ -3,6 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
 import 'login.dart';
 import 'lists.dart';
+import 'GroupLists.dart';
 
 void main() {
   print("main");
@@ -10,23 +11,23 @@ void main() {
 }
 
 final router = GoRouter(
-   routes: [
-     GoRoute(
-       path: '/',
-       builder: (_, __) => Scaffold(
-         appBar: AppBar(title: const Text('Home Screen')),
-       ),
-       routes: [
-         GoRoute(
-           path: 'details',
-           builder: (_, __) => Scaffold(
-             appBar: AppBar(title: const Text('Details Screen')),
-           ),
-         ),
-       ],
-     ),
-   ],
- );
+  routes: [
+    GoRoute(
+      path: '/',
+      builder: (_, __) => Scaffold(
+        appBar: AppBar(title: const Text('Home Screen')),
+      ),
+      routes: [
+        GoRoute(
+          path: 'details',
+          builder: (_, __) => Scaffold(
+            appBar: AppBar(title: const Text('Details Screen')),
+          ),
+        ),
+      ],
+    ),
+  ],
+);
 
 void deleteUserId() async {
   final storage = FlutterSecureStorage();
@@ -70,7 +71,7 @@ class _MyAppState extends State<MyApp> {
               return MainApp();
             } else {
               // User is not logged in, navigate to the login page
-              WidgetsBinding.instance!.addPostFrameCallback((_) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
@@ -88,16 +89,16 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<bool> _checkLoggedIn() async {
-  print("_checkLoggedIn");
-  try {
-    final userId = await storage.read(key: 'userId');
-    print('User ID from secure storage1: $userId');
-    return userId != null;
-  } catch (e) {
-    print('Error checking login status: $e');
-    return false; // Return false in case of any error
+    print("_checkLoggedIn");
+    try {
+      final userId = await storage.read(key: 'userId');
+      print('User ID from secure storage1: $userId');
+      return userId != null;
+    } catch (e) {
+      print('Error checking login status: $e');
+      return false; // Return false in case of any error
+    }
   }
-}
 }
 
 class MainApp extends StatefulWidget {
@@ -144,8 +145,7 @@ class _MainAppState extends State<MainApp> {
         index: _selectedIndex,
         children: [
           MyLists(userId: userId ?? ''),
-          // Groups(userId: userId ?? ''),
-          Groups(),
+          if (userId != null) MyGroupLists(userId: userId!),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
@@ -161,7 +161,6 @@ class _MainAppState extends State<MainApp> {
         ],
         currentIndex: _selectedIndex,
         onTap: (index) {
-          // Update the index when a bottom navigation item is tapped
           setState(() {
             _selectedIndex = index;
           });
@@ -185,15 +184,6 @@ class _MainAppState extends State<MainApp> {
           ],
         ),
       ),
-    );
-  }
-}
-
-class Groups extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Text('Group lists \n nothing here yet'),
     );
   }
 }

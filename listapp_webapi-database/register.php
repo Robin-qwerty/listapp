@@ -15,9 +15,9 @@ try {
     $password = $_POST['password'];
 
     // Check if username is already taken
-    $sql = "SELECT COUNT(*) AS count FROM users WHERE username = :username";
+    $sql = "SELECT COUNT(*) AS count FROM users WHERE username = ?";
     $stmt = $conn->prepare($sql);
-    $stmt->bindParam(':username', $username);
+    $stmt->bindParam(1, $username);
     $stmt->execute();
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -26,20 +26,16 @@ try {
         exit;
     }
 
-    // Hash the password securely
     $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
-    // Insert user into the database
-    $sql = "INSERT INTO users (username, password) VALUES (:username, :password)";
+    $sql = "INSERT INTO `users` (`username`, `password`) VALUES (?, ?)";
     $stmt = $conn->prepare($sql);
-    $stmt->bindParam(':username', $username);
-    $stmt->bindParam(':password', $hashedPassword);
+    $stmt->bindParam(1, $username);
+    $stmt->bindParam(2, $hashedPassword);
 
     if ($stmt->execute()) {
-        // If registration is successful, return the user ID
         echo $conn->lastInsertId();
     } else {
-        // If registration fails, return an error message
         echo "ERROR1";
     }
 } catch (\Throwable $th) {
