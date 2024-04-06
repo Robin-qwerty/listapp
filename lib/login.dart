@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'main.dart'; // Import MainApp to navigate to it when user is logged in
+import 'main.dart';
 
 void main() {
   runApp(LoginApp());
@@ -29,13 +29,12 @@ class _LoginPageState extends State<LoginPage> {
       TextEditingController(); // Added
   final storage = FlutterSecureStorage();
   String _errorText = '';
-  bool _isLogin = true; // Flag to track whether it's login or registration mode
+  bool _isLogin = true;
 
   Future<void> _login(BuildContext context) async {
     final String username = _usernameController.text;
     final String password = _passwordController.text;
 
-    // Check if both fields are filled in
     if (username.isEmpty || password.isEmpty) {
       setState(() {
         _errorText = 'Both fields are required';
@@ -50,7 +49,7 @@ class _LoginPageState extends State<LoginPage> {
 
     if (response.statusCode == 200) {
       final String responseBody = response.body;
-      print(responseBody);
+      // print(responseBody);
       if (responseBody == "ERROR1") {
         setState(() {
           _errorText = 'Login failed. Please try again later.';
@@ -69,20 +68,15 @@ class _LoginPageState extends State<LoginPage> {
           _passwordController.clear();
         });
       } else if (_isNumeric(responseBody)) {
-        final userId =
-            responseBody; // Assuming server returns the user ID as response
+        final userId = responseBody;
 
-        // Print the response
         print('Response from server: $responseBody');
 
-        // Store user ID in secure storage
         await storage.write(key: 'userId', value: userId);
 
-        // Read the stored user ID from secure storage
         final storedUserId = await storage.read(key: 'userId');
         print('User ID stored in secure storage: $storedUserId');
 
-        // Navigate to the main app when user is registered and logged in
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => MainApp()),
@@ -96,7 +90,6 @@ class _LoginPageState extends State<LoginPage> {
         });
       }
     } else {
-      // Handle other HTTP status codes
       setState(() {
         _errorText = 'Failed to login. Please try again later.';
         _passwordController.clear();
@@ -150,11 +143,9 @@ class _LoginPageState extends State<LoginPage> {
         });
       } else if (_isNumeric(responseBody)) {
         final userId =
-            responseBody; // Assuming server returns the user ID as response
-        // Store user ID in secure storage
+            responseBody;
         await storage.write(key: 'userId', value: userId);
 
-        // Navigate to the main app when user is registered and logged in
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => MainApp()),
@@ -169,7 +160,6 @@ class _LoginPageState extends State<LoginPage> {
         });
       }
     } else {
-      // Handle other HTTP status codes
       setState(() {
         _errorText = 'Failed to register. Please try again later.';
         _passwordController.clear();
@@ -188,7 +178,7 @@ class _LoginPageState extends State<LoginPage> {
   void _toggleMode() {
     setState(() {
       _isLogin = !_isLogin;
-      _errorText = ''; // Clear any error message when switching between modes
+      _errorText = '';
     });
   }
 
@@ -199,7 +189,7 @@ class _LoginPageState extends State<LoginPage> {
         title: Text(_isLogin ? 'Login' : 'Register'),
       ),
       body: Padding(
-        padding: EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
@@ -215,12 +205,12 @@ class _LoginPageState extends State<LoginPage> {
             ),
             if (!_isLogin)
               TextField(
-                // Added
                 controller: _confirmPasswordController,
-                decoration: InputDecoration(labelText: 'Confirm Password'),
+                decoration:
+                    const InputDecoration(labelText: 'Confirm Password'),
                 obscureText: true,
               ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             ElevatedButton(
               onPressed:
                   _isLogin ? () => _login(context) : () => _register(context),

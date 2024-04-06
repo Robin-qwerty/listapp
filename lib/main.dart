@@ -67,10 +67,8 @@ class _MyAppState extends State<MyApp> {
             );
           } else {
             if (snapshot.data == true) {
-              // User is logged in, return the main app structure
               return MainApp();
             } else {
-              // User is not logged in, navigate to the login page
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 Navigator.pushReplacement(
                   context,
@@ -80,7 +78,7 @@ class _MyAppState extends State<MyApp> {
                 );
               });
               print("build2");
-              return Container(); // Placeholder while navigating
+              return Container();
             }
           }
         },
@@ -96,7 +94,7 @@ class _MyAppState extends State<MyApp> {
       return userId != null;
     } catch (e) {
       print('Error checking login status: $e');
-      return false; // Return false in case of any error
+      return false;
     }
   }
 }

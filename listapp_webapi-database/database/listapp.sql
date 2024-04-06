@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost
--- Gegenereerd op: 05 apr 2024 om 21:08
+-- Gegenereerd op: 06 apr 2024 om 12:29
 -- Serverversie: 10.11.3-MariaDB
 -- PHP-versie: 8.2.6
 
@@ -33,6 +33,17 @@ CREATE TABLE `invite` (
   `code` varchar(255) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+--
+-- Gegevens worden geëxporteerd voor tabel `invite`
+--
+
+INSERT INTO `invite` (`id`, `groupid`, `code`) VALUES
+(1, 8, 'S6BthhbM'),
+(3, 7, 'p71bK002'),
+(5, 6, 'h82GwWPB'),
+(8, 32, 'ZF3oPd86'),
+(10, 10, 'DcMxOsCX');
+
 -- --------------------------------------------------------
 
 --
@@ -51,20 +62,23 @@ CREATE TABLE `items` (
 --
 
 INSERT INTO `items` (`id`, `list-id`, `item_name`, `archive`) VALUES
-(1, 11, 'test 1 edit test', 1),
+(1, 11, 'test 1 edit test', 0),
 (2, 11, 'test 2', 0),
 (4, 11, 'test 4', 0),
-(5, 12, 'test 5', 0),
+(5, 32, 'test shared list edit item', 0),
 (6, 11, 'add item 1', 0),
 (9, 14, 'dgn vc', 0),
 (10, 21, 'dvd ', 0),
-(11, 11, 'dydu', 1),
-(12, 11, 'd d dbyndv', 2),
+(11, 11, 'dydu', 0),
 (13, 29, 'kaas', 0),
 (14, 29, 'melk 2x', 0),
-(15, 29, 'pasta', 2),
 (16, 30, 'melk', 0),
-(17, 30, 'brood', 0);
+(17, 30, 'brood', 0),
+(18, 32, 'dyfydu', 0),
+(19, 11, 'tebdbx', 1),
+(20, 11, 'jsns chdhndnd 47283', 2),
+(21, 32, '63784 78283', 2),
+(22, 32, 'hv', 1);
 
 -- --------------------------------------------------------
 
@@ -83,7 +97,8 @@ CREATE TABLE `listgroup` (
 --
 
 INSERT INTO `listgroup` (`id`, `userid`, `listgrouplinkid`) VALUES
-(1, 2, 1);
+(25, 2, 8),
+(49, 1, 1);
 
 -- --------------------------------------------------------
 
@@ -102,7 +117,11 @@ CREATE TABLE `listgrouplink` (
 --
 
 INSERT INTO `listgrouplink` (`id`, `owner`, `listid`) VALUES
-(1, 2, 32);
+(1, 2, 32),
+(6, 1, 11),
+(7, 1, 20),
+(8, 1, 21),
+(10, 1, 33);
 
 -- --------------------------------------------------------
 
@@ -113,7 +132,6 @@ INSERT INTO `listgrouplink` (`id`, `owner`, `listid`) VALUES
 CREATE TABLE `lists` (
   `id` int(11) NOT NULL,
   `userid` int(11) NOT NULL,
-  `listgroup_id` int(11) DEFAULT NULL,
   `name` varchar(255) NOT NULL,
   `archive` tinyint(4) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -122,21 +140,23 @@ CREATE TABLE `lists` (
 -- Gegevens worden geëxporteerd voor tabel `lists`
 --
 
-INSERT INTO `lists` (`id`, `userid`, `listgroup_id`, `name`, `archive`) VALUES
-(1, 0, 0, 'boodschappen', 0),
-(3, 0, 0, 'Verlanglijstje Mara', 0),
-(4, 0, 0, 'Verlanglijstje Robin', 0),
-(5, 0, 0, 'verlanglijstje Suzanne', 0),
-(6, 0, 0, 'Verlanglijstje Sander', 0),
-(7, 0, 0, 'Taakjes Robin', 0),
-(9, 0, 0, 'Fruitschaal', 0),
-(11, 1, NULL, 'test lijstje', 0),
-(20, 1, NULL, 'Delete list test 2', 0),
-(21, 1, NULL, 'edit list name test', 0),
-(29, 2, NULL, 'boodschappen ', 0),
-(30, 3, NULL, 'boodschappen', 0),
-(31, 3, NULL, 'verlanglijstje', 0),
-(32, 1, NULL, 'share list test', 0);
+INSERT INTO `lists` (`id`, `userid`, `name`, `archive`) VALUES
+(1, 0, 'boodschappen', 0),
+(3, 0, 'Verlanglijstje Mara', 0),
+(4, 0, 'Verlanglijstje Robin', 0),
+(5, 0, 'verlanglijstje Suzanne', 0),
+(6, 0, 'Verlanglijstje Sander', 0),
+(7, 0, 'Taakjes Robin', 0),
+(9, 0, 'Fruitschaal', 0),
+(11, 1, 'test lijstje', 0),
+(20, 1, 'Delete list test 1', 0),
+(21, 1, 'edit list name test', 0),
+(29, 2, 'boodschappen ', 0),
+(30, 3, 'boodschappen', 0),
+(31, 3, 'verlanglijstje', 0),
+(32, 2, 'share list test', 0),
+(33, 1, 'a list edited', 0),
+(34, 1, 'my list edited', 1);
 
 -- --------------------------------------------------------
 
@@ -197,6 +217,12 @@ INSERT INTO `users` (`userid`, `username`, `password`, `archive`, `created_at`, 
 --
 
 --
+-- Indexen voor tabel `invite`
+--
+ALTER TABLE `invite`
+  ADD PRIMARY KEY (`id`);
+
+--
 -- Indexen voor tabel `items`
 --
 ALTER TABLE `items`
@@ -237,28 +263,34 @@ ALTER TABLE `users`
 --
 
 --
+-- AUTO_INCREMENT voor een tabel `invite`
+--
+ALTER TABLE `invite`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+
+--
 -- AUTO_INCREMENT voor een tabel `items`
 --
 ALTER TABLE `items`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=23;
 
 --
 -- AUTO_INCREMENT voor een tabel `listgroup`
 --
 ALTER TABLE `listgroup`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=50;
 
 --
 -- AUTO_INCREMENT voor een tabel `listgrouplink`
 --
 ALTER TABLE `listgrouplink`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT voor een tabel `lists`
 --
 ALTER TABLE `lists`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=33;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=35;
 
 --
 -- AUTO_INCREMENT voor een tabel `tasks`

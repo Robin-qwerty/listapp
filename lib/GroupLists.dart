@@ -14,19 +14,20 @@ class MyGroupLists extends StatefulWidget {
 }
 
 class _MyGroupListsState extends State<MyGroupLists> {
-  TextEditingController _listNameController = TextEditingController();
-  FocusNode _listNameFocusNode = FocusNode();
+  TextEditingController _groupCodeController = TextEditingController();
+  FocusNode _groupCodeFocusNode = FocusNode();
 
   @override
   void dispose() {
-    _listNameController.dispose();
-    _listNameFocusNode.dispose();
+    _groupCodeController.dispose();
+    _groupCodeFocusNode.dispose();
     super.dispose();
   }
 
   Future<List<Map<String, dynamic>>> _fetchGroupLists() async {
     final response = await http.post(
-      Uri.parse('https://robin.humilis.net/flutter/listapp/get_group_lists.php'),
+      Uri.parse(
+          'https://robin.humilis.net/flutter/listapp/get_group_lists.php'),
       body: {'userId': widget.userId},
     );
 
@@ -37,67 +38,123 @@ class _MyGroupListsState extends State<MyGroupLists> {
     }
   }
 
-  List<Widget> _buildSlidableActions(BuildContext context, Map<String, dynamic> list) {
-  final messenger = ScaffoldMessenger.of(context);
-  return [
-    SlidableAction(
-      onPressed: (context) async {
-        bool confirmLeave = await showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Confirm Leave'),
-            content: const Text('Are you sure you want to leave this group list?'),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop(false);
-                },
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop(true);
-                },
-                child: const Text('Leave'),
-              ),
-            ],
+  Future<void> _joinGroup(String groupCode) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final response = await http.post(
+        Uri.parse('https://robin.humilis.net/flutter/listapp/join_group.php'),
+        body: {'userId': widget.userId, 'groupCode': groupCode},
+      );
+      final responseData = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        if (responseData['message'] == 'Joined group successfully') {
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text('Joined group successfully'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+          setState(() {});
+          _groupCodeController.clear();
+          // print('Response: ${response.body}');
+        } else {
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text('Failed to join group, Please try again later'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      } else {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Failed to join group, Please try again later'),
+            duration: Duration(seconds: 3),
           ),
         );
+      }
+    } catch (e) {
+      print('Error: $e');
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Something went wrong, Please try again later'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+  }
 
-        if (confirmLeave == true) {
-          // Send a web request to leave the group list
-          final response = await http.post(
-            Uri.parse('https://robin.humilis.net/flutter/listapp/leave_group_list.php'),
-            body: {'userId': widget.userId, 'listId': list['id'].toString()},
-          );
-          print('Response: ${response.body}');
-          if (response.statusCode == 200) {
-            if (response.body == 'success') {
-              messenger.showSnackBar(
-                const SnackBar(
-                  content: Text('You left the group list successfully.'),
-                  duration: Duration(seconds: 3),
+  List<Widget> _buildSlidableActions(
+      BuildContext context, Map<String, dynamic> list) {
+    final messenger = ScaffoldMessenger.of(context);
+    return [
+      SlidableAction(
+        onPressed: (context) async {
+          bool confirmLeave = await showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Confirm Leave'),
+              content:
+                  const Text('Are you sure you want to leave this group list?'),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop(false);
+                  },
+                  child: const Text('Cancel'),
                 ),
-              );
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop(true);
+                  },
+                  child: const Text('Leave'),
+                ),
+              ],
+            ),
+          );
+
+          if (confirmLeave == true) {
+            // Send a web request to leave the group list
+            final response = await http.post(
+              Uri.parse(
+                  'https://robin.humilis.net/flutter/listapp/leave_group_list.php'),
+              body: {'userId': widget.userId, 'listId': list['id'].toString()},
+            );
+            // print('Response: ${response.body}');
+            if (response.statusCode == 200) {
+              if (response.body == 'success') {
+                messenger.showSnackBar(
+                  const SnackBar(
+                    content: Text('You left the group list successfully.'),
+                    duration: Duration(seconds: 3),
+                  ),
+                );
+              } else {
+                messenger.showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                        'Failed to leave the group list, Please try again later'),
+                    duration: Duration(seconds: 3),
+                  ),
+                );
+              }
+              setState(() {});
             } else {
               messenger.showSnackBar(
                 const SnackBar(
-                  content: Text('Failed to leave the group list.'),
+                  content: Text(
+                      'Failed to leave the group list, Please try again later'),
                   duration: Duration(seconds: 3),
                 ),
               );
             }
-            setState(() {});
-          } else {
-            throw Exception('Failed to leave group list');
           }
-        }
-      },
-      backgroundColor: Colors.red,
-      icon: Icons.exit_to_app,
-    ),
-  ];
-}
+        },
+        backgroundColor: Colors.red,
+        icon: Icons.exit_to_app,
+      ),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -108,7 +165,43 @@ class _MyGroupListsState extends State<MyGroupLists> {
       floatingActionButton: FloatingActionButton(
         child: const Icon(Icons.add),
         onPressed: () {
-          // Add your onPressed logic for adding a new group list
+          showDialog(
+            context: context,
+            builder: (context) {
+              FocusScope.of(context).requestFocus(_groupCodeFocusNode);
+              return StatefulBuilder(
+                builder: (context, setState) {
+                  return AlertDialog(
+                    title: const Text('Join a group list with a code'),
+                    content: TextField(
+                      controller: _groupCodeController,
+                      focusNode: _groupCodeFocusNode,
+                      decoration:
+                          const InputDecoration(hintText: 'Enter group code'),
+                      onChanged: (value) {
+                        setState(() {});
+                      },
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: _groupCodeController.text.isEmpty
+                            ? null
+                            : () {
+                                _joinGroup(_groupCodeController.text);
+                                Navigator.pop(context);
+                              },
+                        child: const Text('join'),
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
+          );
         },
       ),
       body: Column(
@@ -134,10 +227,12 @@ class _MyGroupListsState extends State<MyGroupLists> {
                       return Slidable(
                         startActionPane: ActionPane(
                           motion: DrawerMotion(),
+                          extentRatio: 0.2,
                           children: _buildSlidableActions(context, list),
                         ),
                         endActionPane: ActionPane(
                           motion: DrawerMotion(),
+                          extentRatio: 0.2,
                           children: _buildSlidableActions(context, list),
                         ),
                         child: Card(
@@ -174,7 +269,7 @@ class _MyGroupListsState extends State<MyGroupLists> {
           // Instructional ListTile
           const ListTile(
             leading: Icon(Icons.swipe),
-            title: Text('Swipe left or right to perform actions'),
+            title: Text('Swipe left or right to Leave a list'),
           ),
         ],
       ),

@@ -1,9 +1,10 @@
 import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:share/share.dart';
 import 'dart:convert';
 import 'listitempage.dart';
-import 'UserListPage.dart';
 
 class MyLists extends StatefulWidget {
   final String userId;
@@ -17,6 +18,7 @@ class MyLists extends StatefulWidget {
 class _ListsPageState extends State<MyLists> {
   TextEditingController _listNameController = TextEditingController();
   FocusNode _listNameFocusNode = FocusNode();
+  bool isLoading = false;
 
   @override
   void dispose() {
@@ -36,30 +38,139 @@ class _ListsPageState extends State<MyLists> {
   }
 
   Future<void> _addList(String listName) async {
+    final messenger = ScaffoldMessenger.of(context);
     try {
       final response = await http.post(
         Uri.parse('https://robin.humilis.net/flutter/listapp/add_list.php'),
         body: {'userId': widget.userId, 'listName': listName},
       );
+      final responseData = jsonDecode(response.body);
       if (response.statusCode == 200) {
-        // Refresh the list after adding the new one
-        setState(() {});
-        _listNameController.clear();
-        print('Response: ${response.body}');
+        if (responseData['message'] == 'List added successfully') {
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text('List added successfully'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+          setState(() {});
+          _listNameController.clear();
+          // print('Response: ${response.body}');
+        } else {
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text('List added Failed, Please try again later'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
       } else {
-        throw Exception('Failed to add list');
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('List added Failed, Please try again later'),
+            duration: Duration(seconds: 3),
+          ),
+        );
       }
     } catch (e) {
       print('Error: $e');
     }
   }
 
+  Future<void> generateLinkAndShare(listId) async {
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() {
+      isLoading = true;
+    });
+
+    final response = await http.post(
+      Uri.parse(
+          'https://robin.humilis.net/flutter/listapp/generate_share_link.php'),
+      body: {'userId': widget.userId, 'listId': listId},
+    );
+
+    if (response.statusCode == 200) {
+      // print('Response: ${response.body}');
+      final responseData = jsonDecode(response.body);
+      if (responseData['success'] == true) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Link generated successfully'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Share List Link'),
+              content: Text(responseData['link']),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Clipboard.setData(
+                        ClipboardData(text: responseData['link']));
+                    messenger.showSnackBar(
+                      const SnackBar(
+                        content: Text('Link copied to clipboard'),
+                        duration: Duration(seconds: 3),
+                      ),
+                    );
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Copy link'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Clipboard.setData(
+                        ClipboardData(text: responseData['code']));
+                    messenger.showSnackBar(
+                      const SnackBar(
+                        content: Text('code copied to clipboard'),
+                        duration: Duration(seconds: 3),
+                      ),
+                    );
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Copy group code'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Share.share(
+                        'Do you want to join my list group? \nHere is the link: ' +
+                            responseData['link'] +
+                            '\n Or you can use ' +
+                            responseData['code']);
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Share'),
+                ),
+              ],
+            );
+          },
+        );
+      }
+    } else {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Something went wrong, Please try again later'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+
+    setState(() {
+      isLoading = false;
+    });
+  }
+
   List<Widget> _buildSlidableActions(
       BuildContext context, Map<String, dynamic> list) {
+    final messenger = ScaffoldMessenger.of(context);
     return [
       SlidableAction(
         onPressed: (context) async {
-          // Show dialog to edit list name
           String? editedName = await showDialog(
             context: context,
             builder: (context) {
@@ -99,12 +210,35 @@ class _ListsPageState extends State<MyLists> {
                 'listName': editedName
               },
             );
+            final responseData = jsonDecode(response.body);
             if (response.statusCode == 200) {
-              // Refresh the list after updating the list name
-              setState(() {});
-              print('Response: ${response.body}');
+              if (responseData['success'] == true) {
+                messenger.showSnackBar(
+                  const SnackBar(
+                    content: Text('List updated successfully'),
+                    duration: Duration(seconds: 3),
+                  ),
+                );
+                setState(() {});
+                _listNameController.clear();
+                // print('Response: ${response.body}');
+              } else {
+                messenger.showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                        'Failed to update lists name, Please try again later'),
+                    duration: Duration(seconds: 3),
+                  ),
+                );
+              }
             } else {
-              throw Exception('Failed to update list name');
+              messenger.showSnackBar(
+                const SnackBar(
+                  content: Text(
+                      'Failed to update lists name, Please try again later'),
+                  duration: Duration(seconds: 3),
+                ),
+              );
             }
           }
         },
@@ -143,12 +277,35 @@ class _ListsPageState extends State<MyLists> {
                   'https://robin.humilis.net/flutter/listapp/delete_list.php'),
               body: {'userId': widget.userId, 'listId': list['id'].toString()},
             );
+            final responseData = jsonDecode(response.body);
             if (response.statusCode == 200) {
-              // Refresh the list after deleting the list
-              setState(() {});
-              print('Response: ${response.body}');
+              if (responseData['success'] == true) {
+                messenger.showSnackBar(
+                  const SnackBar(
+                    content: Text('List deleted successfully'),
+                    duration: Duration(seconds: 3),
+                  ),
+                );
+                setState(() {});
+                _listNameController.clear();
+                // print('Response: ${response.body}');
+              } else {
+                messenger.showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                        'Failed to delete this list, Please try again later'),
+                    duration: Duration(seconds: 3),
+                  ),
+                );
+              }
             } else {
-              throw Exception('Failed to delete list');
+              messenger.showSnackBar(
+                const SnackBar(
+                  content: Text(
+                      'Failed to delete this list, Please try again later'),
+                  duration: Duration(seconds: 3),
+                ),
+              );
             }
           }
         },
@@ -156,24 +313,8 @@ class _ListsPageState extends State<MyLists> {
         icon: Icons.delete,
       ),
       SlidableAction(
-        onPressed: (context) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => UserListPage(
-                  userId: widget.userId, listId: list['id'].toString()),
-            ),
-          ).then((success) {
-            if (success == true) {
-              // Show a SnackBar indicating success on returning from UserListPage
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('List shared successfully'),
-                  duration: Duration(seconds: 3),
-                ),
-              );
-            }
-          });
+        onPressed: (context) async {
+          generateLinkAndShare(list['id'].toString());
         },
         backgroundColor: Colors.blue,
         icon: Icons.share,
@@ -193,7 +334,6 @@ class _ListsPageState extends State<MyLists> {
           showDialog(
             context: context,
             builder: (context) {
-              // Automatically focus on the text input and open keyboard
               FocusScope.of(context).requestFocus(_listNameFocusNode);
               return StatefulBuilder(
                 builder: (context, setState) {
@@ -311,7 +451,8 @@ class _ListsPageState extends State<MyLists> {
           // Instructional ListTile
           const ListTile(
             leading: Icon(Icons.swipe),
-            title: Text('Swipe left or right to edit or delete lists'),
+            title:
+                Text('Swipe left or right to edit, delete or \n share a lists'),
           ),
         ],
       ),

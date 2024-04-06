@@ -8,7 +8,8 @@ class ListItemsPage extends StatefulWidget {
   final int listId;
   final String listName;
 
-  ListItemsPage({required this.userId, required this.listId, required this.listName});
+  ListItemsPage(
+      {required this.userId, required this.listId, required this.listName});
 
   @override
   _ListItemsPageState createState() => _ListItemsPageState();
@@ -37,8 +38,10 @@ class _ListItemsPageState extends State<ListItemsPage> {
     }
   }
 
-  Future<void> _editItem(BuildContext context, int itemId, String itemName) async {
-    TextEditingController _itemNameController = TextEditingController(text: itemName);
+  Future<void> _editItem(
+      BuildContext context, int itemId, String itemName) async {
+    TextEditingController _itemNameController =
+        TextEditingController(text: itemName);
     await showDialog(
       context: context,
       builder: (context) {
@@ -60,11 +63,15 @@ class _ListItemsPageState extends State<ListItemsPage> {
                 Navigator.pop(context);
                 // Send request to update item name
                 final response = await http.post(
-                  Uri.parse('https://robin.humilis.net/flutter/listapp/list_items.php'),
-                  body: {'userId': widget.userId, 'itemId': itemId.toString(), 'itemName': _itemNameController.text},
+                  Uri.parse(
+                      'https://robin.humilis.net/flutter/listapp/list_items.php'),
+                  body: {
+                    'userId': widget.userId,
+                    'itemId': itemId.toString(),
+                    'itemName': _itemNameController.text
+                  },
                 );
-                print('Response: ${response.body}');
-                print('Response code: ${response.statusCode}');
+                // print('Response: ${response.body}');
                 if (response.statusCode == 200) {
                   setState(() {});
                   print('Item name updated successfully');
@@ -80,22 +87,32 @@ class _ListItemsPageState extends State<ListItemsPage> {
     );
   }
 
-  Future<void> _updateItemArchive(BuildContext context, int itemId, int archiveStatus) async {
+  Future<void> _updateItemArchive(
+      BuildContext context, int itemId, int archiveStatus) async {
+    final messenger = ScaffoldMessenger.of(context);
     final response = await http.post(
       Uri.parse('https://robin.humilis.net/flutter/listapp/list_items.php'),
-      body: {'userId': widget.userId, 'itemId': itemId.toString(), 'archiveStatus': archiveStatus.toString()},
+      body: {
+        'userId': widget.userId,
+        'itemId': itemId.toString(),
+        'archiveStatus': archiveStatus.toString()
+      },
     );
-    print('Response: ${response.body}');
-    print('Response code: ${response.statusCode}');
+    // print('Response: ${response.body}');
     if (response.statusCode == 200) {
       setState(() {});
-      print('Item archive status updated successfully');
     } else {
-      print('Failed to update item archive status');
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Something went wrong, Please try again later'),
+          duration: Duration(seconds: 3),
+        ),
+      );
     }
   }
 
-  List<Widget> _buildSlidableActions(BuildContext context, Map<String, dynamic> item) {
+  List<Widget> _buildSlidableActions(
+      BuildContext context, Map<String, dynamic> item) {
     if (item['archive'] == 0) {
       return [
         SlidableAction(
@@ -144,22 +161,55 @@ class _ListItemsPageState extends State<ListItemsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final messenger = ScaffoldMessenger.of(context);
     Future<void> _addItem(String itemName) async {
       try {
         final response = await http.post(
           Uri.parse('https://robin.humilis.net/flutter/listapp/add_item.php'),
-          body: {'userId': widget.userId, 'listId': widget.listId.toString(), 'itemName': itemName},
+          body: {
+            'userId': widget.userId,
+            'listId': widget.listId.toString(),
+            'itemName': itemName
+          },
         );
-        print('Response: ${response.body}');
+        final responseData = jsonDecode(response.body);
+        // print('Response: ${response.body}');
         if (response.statusCode == 200) {
-          // Refresh the list after adding the new item
-          setState(() {});
-          _itemNameController.clear();
+          if (responseData['success'] == true) {
+            setState(() {});
+            _itemNameController.clear();
+            // print('Response: ${response.body}');
+          } else {
+            messenger.showSnackBar(
+              const SnackBar(
+                content:
+                    Text('Failed to add list item, Please try again later'),
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
         } else {
-          throw Exception('Failed to add item');
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text('Failed to add list item, Please try again later'),
+              duration: Duration(seconds: 3),
+            ),
+          );
         }
       } catch (e) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Failed to add list item, Please try again later'),
+            duration: Duration(seconds: 3),
+          ),
+        );
         print('Error: $e');
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Something went wrong, Please try again later'),
+            duration: Duration(seconds: 3),
+          ),
+        );
       }
     }
 
@@ -173,7 +223,6 @@ class _ListItemsPageState extends State<ListItemsPage> {
           showDialog(
             context: context,
             builder: (context) {
-              // Automatically focus on the text input and open keyboard
               FocusScope.of(context).requestFocus(_itemNameFocusNode);
               return StatefulBuilder(
                 builder: (context, setState) {
@@ -182,7 +231,8 @@ class _ListItemsPageState extends State<ListItemsPage> {
                     content: TextField(
                       controller: _itemNameController,
                       focusNode: _itemNameFocusNode,
-                      decoration: const InputDecoration(hintText: 'Enter Item Name'),
+                      decoration:
+                          const InputDecoration(hintText: 'Enter Item Name'),
                       onChanged: (value) {
                         setState(() {});
                       },
@@ -217,7 +267,6 @@ class _ListItemsPageState extends State<ListItemsPage> {
           } else if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
           } else if (snapshot.data!.isEmpty) {
-            // If the list has no items
             return const Center(
               child: Text('No items in this list.'),
             );
@@ -228,13 +277,15 @@ class _ListItemsPageState extends State<ListItemsPage> {
                 if (index == snapshot.data!.length) {
                   return const ListTile(
                     leading: Icon(Icons.swipe),
-                    title: Text('Swipe left or right to edit or delete'),
+                    title:
+                        Text('Swipe left or right to edit or delete an item'),
                     dense: true,
                   );
                 } else {
                   final item = snapshot.data![index];
                   return Card(
-                    margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                    margin:
+                        const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
                     child: Slidable(
                       startActionPane: ActionPane(
                         motion: DrawerMotion(),
@@ -245,11 +296,15 @@ class _ListItemsPageState extends State<ListItemsPage> {
                         children: _buildSlidableActions(context, item),
                       ),
                       child: ListTile(
-                        tileColor: item['archive'] == 1 ? Colors.grey[150] : Colors.grey[300],
+                        tileColor: item['archive'] == 1
+                            ? Colors.grey[150]
+                            : Colors.grey[300],
                         title: Text(
                           item['item_name'].toString(),
                           style: TextStyle(
-                            decoration: item['archive'] == 1 ? TextDecoration.lineThrough : null,
+                            decoration: item['archive'] == 1
+                                ? TextDecoration.lineThrough
+                                : null,
                           ),
                         ),
                         leading: Text(

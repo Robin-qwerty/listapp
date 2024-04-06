@@ -27,13 +27,14 @@ try {
         $statement = $conn->prepare($query);
         $statement->execute([$userId, $listName]);
         $lists = $statement->fetch(PDO::FETCH_ASSOC);
+
+        echo json_encode(['message' => 'List added successfully']);
     }
     else {
         echo json_encode(['error' => 'Invalid userId']);
         exit();
     }
 } catch (\Throwable $th) {
-    // Error handling if userId or listId is not provided
     echo json_encode(['error' => 'userId or listId is not provided']);
 }
 
