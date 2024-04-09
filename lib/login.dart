@@ -169,9 +169,6 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   bool _isNumeric(String str) {
-    if (str == null) {
-      return false;
-    }
     return double.tryParse(str) != null;
   }
 
@@ -180,6 +177,14 @@ class _LoginPageState extends State<LoginPage> {
       _isLogin = !_isLogin;
       _errorText = '';
     });
+  }
+
+  Future<void> _continueWithoutAccount(BuildContext context) async {
+    await storage.write(key: 'userId', value: '0');
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => MainApp()),
+    );
   }
 
   @override
@@ -221,6 +226,10 @@ class _LoginPageState extends State<LoginPage> {
               child: Text(_isLogin
                   ? 'Create an account'
                   : 'Already have an account? Login'),
+            ),
+            TextButton(
+              onPressed: () => _continueWithoutAccount(context),
+              child: const Text('Continue without an account'),
             ),
           ],
         ),

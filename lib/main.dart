@@ -1,9 +1,10 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter/material.dart';
+import 'accountlesslists.dart';
+import 'GroupLists.dart';
 import 'login.dart';
 import 'lists.dart';
-import 'GroupLists.dart';
 
 void main() {
   print("main");
@@ -41,7 +42,7 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  final storage = FlutterSecureStorage();
+  final storage = const FlutterSecureStorage();
 
   late Future<bool> _loggedInFuture;
 
@@ -90,7 +91,7 @@ class _MyAppState extends State<MyApp> {
     print("_checkLoggedIn");
     try {
       final userId = await storage.read(key: 'userId');
-      print('User ID from secure storage1: $userId');
+      print('User ID from secure storage: $userId');
       return userId != null;
     } catch (e) {
       print('Error checking login status: $e');
@@ -122,10 +123,8 @@ class _MainAppState extends State<MainApp> {
     setState(() {});
   }
 
-  // Function to handle logout
   void _logout(BuildContext context) async {
-    print("_logout");
-    deleteUserId(); // Clear user ID from secure storage
+    deleteUserId();
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (context) => LoginPage()),
@@ -134,6 +133,12 @@ class _MainAppState extends State<MainApp> {
 
   @override
   Widget build(BuildContext context) {
+    List<Widget> pages = [
+      if (userId != '0') MyLists(userId: userId ?? ''),
+      if (userId != '0') MyGroupLists(userId: userId ?? ''),
+      if (userId == '0') MyAccountlessLists(userId: userId ?? ''),
+    ];
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.green,
@@ -141,47 +146,48 @@ class _MainAppState extends State<MainApp> {
       ),
       body: IndexedStack(
         index: _selectedIndex,
-        children: [
-          MyLists(userId: userId ?? ''),
-          if (userId != null) MyGroupLists(userId: userId!),
-        ],
+        children: pages,
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.list),
-            label: 'My lists',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.group),
-            label: 'Group lists',
-          ),
-        ],
-        currentIndex: _selectedIndex,
-        onTap: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
-      ),
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: <Widget>[
-            const DrawerHeader(
-              decoration: BoxDecoration(
-                color: Colors.blue,
+      bottomNavigationBar: userId != '0'
+          ? BottomNavigationBar(
+              items: const [
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.list),
+                  label: 'My lists',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.group),
+                  label: 'Group lists',
+                ),
+              ],
+              currentIndex: _selectedIndex,
+              onTap: (index) {
+                setState(() {
+                  _selectedIndex = index;
+                });
+              },
+            )
+          : null,
+      drawer: userId != '0'
+          ? Drawer(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: <Widget>[
+                  const DrawerHeader(
+                    decoration: BoxDecoration(
+                      color: Colors.blue,
+                    ),
+                    child: Text('Menu'),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.logout),
+                    title: const Text('Logout'),
+                    onTap: () => _logout(context),
+                  ),
+                ],
               ),
-              child: Text('Menu'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.logout),
-              title: const Text('Logout'),
-              onTap: () => _logout(context),
-            ),
-          ],
-        ),
-      ),
+            )
+          : null,
     );
   }
 }

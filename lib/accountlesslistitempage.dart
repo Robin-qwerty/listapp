@@ -1,7 +1,6 @@
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:sqflite/sqflite.dart';
 
 class ListItemsPage extends StatefulWidget {
   final String userId;
@@ -18,24 +17,63 @@ class ListItemsPage extends StatefulWidget {
 class _ListItemsPageState extends State<ListItemsPage> {
   TextEditingController _itemNameController = TextEditingController();
   FocusNode _itemNameFocusNode = FocusNode();
+  late Database _database;
+
+  @override
+  void initState() {
+    super.initState();
+    _initDatabase().then((database) {
+      _database = database;
+      _fetchItems();
+    });
+  }
+
+  Future<Database> _initDatabase() async {
+    try {
+      return await openDatabase(
+        'my_lists.db',
+        version: 1,
+        onCreate: (db, version) async {
+        // Create tables
+        await db.execute('''
+        CREATE TABLE lists (
+          id INTEGER PRIMARY KEY,
+          name TEXT NOT NULL,
+          archive INTEGER NOT NULL DEFAULT 0
+        )
+        ''');
+        await db.execute('''
+        CREATE TABLE items (
+          id INTEGER PRIMARY KEY,
+          list_id INTEGER NOT NULL,
+          item_name TEXT NOT NULL,
+          archive INTEGER NOT NULL DEFAULT 0
+        )
+        ''');
+      },
+      );
+    } catch (e) {
+      print('Error initializing database: $e');
+      throw e;
+    }
+  }
 
   @override
   void dispose() {
     _itemNameController.dispose();
     _itemNameFocusNode.dispose();
+    _database.close();
     super.dispose();
   }
 
   Future<List<Map<String, dynamic>>> _fetchItems() async {
-    final response = await http.post(
-      Uri.parse('https://robin.humilis.net/flutter/listapp/list_items.php'),
-      body: {'userId': widget.userId, 'listId': widget.listId.toString()},
+    // Fetch items from the local database
+    final List<Map<String, dynamic>> items = await _database.query(
+      'items',
+      where: 'list_id = ?',
+      whereArgs: [widget.listId],
     );
-    if (response.statusCode == 200) {
-      return List<Map<String, dynamic>>.from(json.decode(response.body));
-    } else {
-      throw Exception('Failed to load items');
-    }
+    return items;
   }
 
   Future<void> _editItem(
@@ -61,23 +99,7 @@ class _ListItemsPageState extends State<ListItemsPage> {
             TextButton(
               onPressed: () async {
                 Navigator.pop(context);
-                // Send request to update item name
-                final response = await http.post(
-                  Uri.parse(
-                      'https://robin.humilis.net/flutter/listapp/list_items.php'),
-                  body: {
-                    'userId': widget.userId,
-                    'itemId': itemId.toString(),
-                    'itemName': _itemNameController.text
-                  },
-                );
-                // print('Response: ${response.body}');
-                if (response.statusCode == 200) {
-                  setState(() {});
-                  print('Item name updated successfully');
-                } else {
-                  print('Failed to update item name');
-                }
+                // Update item from list in localdatabase
               },
               child: const Text('Save'),
             ),
@@ -89,26 +111,7 @@ class _ListItemsPageState extends State<ListItemsPage> {
 
   Future<void> _updateItemArchive(
       BuildContext context, int itemId, int archiveStatus) async {
-    final messenger = ScaffoldMessenger.of(context);
-    final response = await http.post(
-      Uri.parse('https://robin.humilis.net/flutter/listapp/list_items.php'),
-      body: {
-        'userId': widget.userId,
-        'itemId': itemId.toString(),
-        'archiveStatus': archiveStatus.toString()
-      },
-    );
-    // print('Response: ${response.body}');
-    if (response.statusCode == 200) {
-      setState(() {});
-    } else {
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Something went wrong, Please try again later'),
-          duration: Duration(seconds: 3),
-        ),
-      );
-    }
+    // update archive status of list item in localdatabase
   }
 
   List<Widget> _buildSlidableActions(
@@ -163,40 +166,7 @@ class _ListItemsPageState extends State<ListItemsPage> {
   Widget build(BuildContext context) {
     final messenger = ScaffoldMessenger.of(context);
     Future<void> _addItem(String itemName) async {
-      try {
-        final response = await http.post(
-          Uri.parse('https://robin.humilis.net/flutter/listapp/add_item.php'),
-          body: {
-            'userId': widget.userId,
-            'listId': widget.listId.toString(),
-            'itemName': itemName
-          },
-        );
-        final responseData = jsonDecode(response.body);
-        // print('Response: ${response.body}');
-        if (response.statusCode == 200) {
-          if (responseData['success'] == true) {
-            setState(() {});
-            _itemNameController.clear();
-            // print('Response: ${response.body}');
-          } else {
-            messenger.showSnackBar(
-              const SnackBar(
-                content:
-                    Text('Failed to add list item, Please try again later'),
-                duration: Duration(seconds: 3),
-              ),
-            );
-          }
-        } else {
-          messenger.showSnackBar(
-            const SnackBar(
-              content: Text('Failed to add list item, Please try again later'),
-              duration: Duration(seconds: 3),
-            ),
-          );
-        }
-      } catch (e) {
+      try {} catch (e) {
         messenger.showSnackBar(
           const SnackBar(
             content: Text('Failed to add list item, Please try again later'),
@@ -259,6 +229,7 @@ class _ListItemsPageState extends State<ListItemsPage> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           } else if (snapshot.hasError) {
+            print(snapshot.error);
             return Center(child: Text('Error: ${snapshot.error}'));
           } else if (snapshot.data!.isEmpty) {
             return const Center(

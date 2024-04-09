@@ -1,169 +1,92 @@
 import 'package:flutter_slidable/flutter_slidable.dart';
-import 'package:http/http.dart' as http;
-import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
-import 'package:share/share.dart';
-import 'dart:convert';
-import 'listitempage.dart';
+import 'accountlesslistitempage.dart';
+import 'main.dart';
 
-class MyLists extends StatefulWidget {
+class MyAccountlessLists extends StatefulWidget {
   final String userId;
 
-  const MyLists({required this.userId});
+  const MyAccountlessLists({required this.userId});
 
   @override
   _ListsPageState createState() => _ListsPageState();
 }
 
-class _ListsPageState extends State<MyLists> {
+class _ListsPageState extends State<MyAccountlessLists> {
   final TextEditingController _listNameController = TextEditingController();
   final FocusNode _listNameFocusNode = FocusNode();
   bool isLoading = false;
+
+  late Database _database;
+
+  @override
+  void initState() {
+    super.initState();
+    _initDatabase();
+  }
+
+  Future<void> _initDatabase() async {
+    print('_initDatabase');
+    // Open the database or create if not exists
+    _database = await openDatabase(
+      'my_lists.db',
+      version: 1,
+      onCreate: (db, version) async {
+        // Create tables
+        await db.execute('''
+        CREATE TABLE lists (
+          id INTEGER PRIMARY KEY,
+          name TEXT NOT NULL,
+          archive INTEGER NOT NULL DEFAULT 0
+        )
+        ''');
+        await db.execute('''
+        CREATE TABLE items (
+          id INTEGER PRIMARY KEY,
+          list_id INTEGER NOT NULL,
+          item_name TEXT NOT NULL,
+          archive INTEGER NOT NULL DEFAULT 0
+        )
+        ''');
+      },
+    );
+  }
 
   @override
   void dispose() {
     _listNameController.dispose();
     _listNameFocusNode.dispose();
+    if (widget.userId == '0') {
+      _database.close();
+    }
     super.dispose();
   }
 
   Future<List<Map<String, dynamic>>> _fetchLists() async {
-    final response = await http.get(Uri.parse(
-        'https://robin.humilis.net/flutter/listapp/mylist.php?userid=${widget.userId}'));
-    if (response.statusCode == 200) {
-      return List<Map<String, dynamic>>.from(json.decode(response.body));
-    } else {
-      throw Exception('Failed to load lists');
-    }
+    // Ensure _database is initialized
+    await _initDatabase();
+    // Fetch lists from the local database
+    final List<Map<String, dynamic>> lists = await _database.query('lists');
+    return lists;
   }
 
   Future<void> _addList(String listName) async {
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      final response = await http.post(
-        Uri.parse('https://robin.humilis.net/flutter/listapp/add_list.php'),
-        body: {'userId': widget.userId, 'listName': listName},
+    if (widget.userId == '0') {
+      // Add a list to the local database
+      await _database.insert(
+        'lists',
+        {'name': listName},
+        conflictAlgorithm: ConflictAlgorithm.replace,
       );
-      final responseData = jsonDecode(response.body);
-      if (response.statusCode == 200) {
-        if (responseData['message'] == 'List added successfully') {
-          messenger.showSnackBar(
-            const SnackBar(
-              content: Text('List added successfully'),
-              duration: Duration(seconds: 3),
-            ),
-          );
-          setState(() {});
-          _listNameController.clear();
-          // print('Response: ${response.body}');
-        } else {
-          messenger.showSnackBar(
-            const SnackBar(
-              content: Text('List added Failed, Please try again later'),
-              duration: Duration(seconds: 3),
-            ),
-          );
-        }
-      } else {
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text('List added Failed, Please try again later'),
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
-    } catch (e) {
-      print('Error: $e');
-    }
-  }
-
-  Future<void> generateLinkAndShare(listId) async {
-    final messenger = ScaffoldMessenger.of(context);
-    setState(() {
-      isLoading = true;
-    });
-
-    final response = await http.post(
-      Uri.parse(
-          'https://robin.humilis.net/flutter/listapp/generate_share_link.php'),
-      body: {'userId': widget.userId, 'listId': listId},
-    );
-
-    if (response.statusCode == 200) {
-      // print('Response: ${response.body}');
-      final responseData = jsonDecode(response.body);
-      if (responseData['success'] == true) {
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text('Group code generated successfully'),
-            duration: Duration(seconds: 3),
-          ),
-        );
-
-        showDialog(
-          context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: const Text('Share List Link'),
-              content: Text(responseData['link']),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Clipboard.setData(
-                        ClipboardData(text: responseData['link']));
-                    messenger.showSnackBar(
-                      const SnackBar(
-                        content: Text('Link copied to clipboard'),
-                        duration: Duration(seconds: 3),
-                      ),
-                    );
-                    Navigator.pop(context);
-                  },
-                  child: const Text('Copy link'),
-                ),
-                TextButton(
-                  onPressed: () {
-                    Clipboard.setData(
-                        ClipboardData(text: responseData['code']));
-                    messenger.showSnackBar(
-                      const SnackBar(
-                        content: Text('code copied to clipboard'),
-                        duration: Duration(seconds: 3),
-                      ),
-                    );
-                    Navigator.pop(context);
-                  },
-                  child: const Text('Copy group code'),
-                ),
-                TextButton(
-                  onPressed: () {
-                    Share.share(
-                        'Do you want to join my list group? \nHere is the link: ' +
-                            responseData['link'] +
-                            '\n Or you can use ' +
-                            responseData['code']);
-                    Navigator.pop(context);
-                  },
-                  child: const Text('Share'),
-                ),
-              ],
-            );
-          },
-        );
-      }
+      // Refresh the UI
+      setState(() {});
     } else {
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Something went wrong, Please try again later'),
-          duration: Duration(seconds: 3),
-        ),
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => MyApp()),
       );
     }
-
-    setState(() {
-      isLoading = false;
-    });
   }
 
   List<Widget> _buildSlidableActions(
@@ -190,8 +113,17 @@ class _ListsPageState extends State<MyLists> {
                     child: const Text('Cancel'),
                   ),
                   TextButton(
-                    onPressed: () {
-                      Navigator.pop(context, _editListNameController.text);
+                    onPressed: () async {
+                      if (_editListNameController.text.isNotEmpty) {
+                        await _database.update(
+                          'lists',
+                          {'name': _editListNameController.text},
+                          where: 'id = ?',
+                          whereArgs: [list['id']],
+                        );
+                        setState(() {});
+                      }
+                      Navigator.pop(context);
                     },
                     child: const Text('Save'),
                   ),
@@ -200,47 +132,10 @@ class _ListsPageState extends State<MyLists> {
             },
           );
 
+          // Update the list name in the local database
           if (editedName != null && editedName.isNotEmpty) {
-            // Send a web request to update the list name
-            final response = await http.post(
-              Uri.parse(
-                  'https://robin.humilis.net/flutter/listapp/update_list.php'),
-              body: {
-                'userId': widget.userId,
-                'listId': list['id'].toString(),
-                'listName': editedName
-              },
-            );
-            final responseData = jsonDecode(response.body);
-            if (response.statusCode == 200) {
-              if (responseData['success'] == true) {
-                messenger.showSnackBar(
-                  const SnackBar(
-                    content: Text('List updated successfully'),
-                    duration: Duration(seconds: 3),
-                  ),
-                );
-                setState(() {});
-                _listNameController.clear();
-                // print('Response: ${response.body}');
-              } else {
-                messenger.showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                        'Failed to update lists name, Please try again later'),
-                    duration: Duration(seconds: 3),
-                  ),
-                );
-              }
-            } else {
-              messenger.showSnackBar(
-                const SnackBar(
-                  content: Text(
-                      'Failed to update lists name, Please try again later'),
-                  duration: Duration(seconds: 3),
-                ),
-              );
-            }
+            // Update the list name in the local database
+            // This logic is now handled inside the Save button onPressed callback
           }
         },
         backgroundColor: Colors.orange,
@@ -248,7 +143,6 @@ class _ListsPageState extends State<MyLists> {
       ),
       SlidableAction(
         onPressed: (context) async {
-          // Show confirmation dialog
           bool confirmDelete = await showDialog(
             context: context,
             builder: (context) => AlertDialog(
@@ -262,7 +156,13 @@ class _ListsPageState extends State<MyLists> {
                   child: const Text('Cancel'),
                 ),
                 TextButton(
-                  onPressed: () {
+                  onPressed: () async {
+                    await _database.delete(
+                      'lists',
+                      where: 'id = ?',
+                      whereArgs: [list['id']],
+                    );
+                    setState(() {});
                     Navigator.of(context).pop(true);
                   },
                   child: const Text('Delete'),
@@ -271,54 +171,14 @@ class _ListsPageState extends State<MyLists> {
             ),
           );
 
+          // Delete a list from the local database
           if (confirmDelete == true) {
-            // Send a web request to delete the list
-            final response = await http.post(
-              Uri.parse(
-                  'https://robin.humilis.net/flutter/listapp/delete_list.php'),
-              body: {'userId': widget.userId, 'listId': list['id'].toString()},
-            );
-            final responseData = jsonDecode(response.body);
-            if (response.statusCode == 200) {
-              if (responseData['success'] == true) {
-                messenger.showSnackBar(
-                  const SnackBar(
-                    content: Text('List deleted successfully'),
-                    duration: Duration(seconds: 3),
-                  ),
-                );
-                setState(() {});
-                _listNameController.clear();
-                // print('Response: ${response.body}');
-              } else {
-                messenger.showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                        'Failed to delete this list, Please try again later'),
-                    duration: Duration(seconds: 3),
-                  ),
-                );
-              }
-            } else {
-              messenger.showSnackBar(
-                const SnackBar(
-                  content: Text(
-                      'Failed to delete this list, Please try again later'),
-                  duration: Duration(seconds: 3),
-                ),
-              );
-            }
+            // Delete a list from the local database
+            // This logic is now handled inside the Delete button onPressed callback
           }
         },
         backgroundColor: Colors.red,
         icon: Icons.delete,
-      ),
-      SlidableAction(
-        onPressed: (context) async {
-          generateLinkAndShare(list['id'].toString());
-        },
-        backgroundColor: Colors.blue,
-        icon: Icons.share,
       ),
     ];
   }
@@ -380,6 +240,7 @@ class _ListsPageState extends State<MyLists> {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 } else if (snapshot.hasError) {
+                  print(snapshot.error);
                   return Center(child: Text('Error: ${snapshot.error}'));
                 } else if (snapshot.data!.isEmpty) {
                   // If the user has no lists
@@ -449,7 +310,6 @@ class _ListsPageState extends State<MyLists> {
               },
             ),
           ),
-          // Instructional ListTile
           const ListTile(
             leading: Icon(Icons.swipe),
             title:
