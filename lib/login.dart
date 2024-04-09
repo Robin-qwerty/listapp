@@ -1,6 +1,8 @@
-import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:http/http.dart' as http;
+import 'package:flutter/material.dart';
+import 'package:crypto/crypto.dart';
+import 'dart:convert';
 import 'main.dart';
 
 void main() {
@@ -22,18 +24,25 @@ class LoginPage extends StatefulWidget {
   _LoginPageState createState() => _LoginPageState();
 }
 
+String hashPassword(String password) {
+  var bytes = utf8.encode(password); // Encode the password as UTF-8
+  var digest = sha256.convert(bytes); // Generate SHA-256 hash
+  return digest.toString();
+}
+
 class _LoginPageState extends State<LoginPage> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
       TextEditingController(); // Added
-  final storage = FlutterSecureStorage();
+  final storage = const FlutterSecureStorage();
   String _errorText = '';
   bool _isLogin = true;
 
   Future<void> _login(BuildContext context) async {
     final String username = _usernameController.text;
     final String password = _passwordController.text;
+    final String passwordHash = hashPassword(_passwordController.text);
 
     if (username.isEmpty || password.isEmpty) {
       setState(() {
@@ -44,7 +53,7 @@ class _LoginPageState extends State<LoginPage> {
 
     final response = await http.post(
       Uri.parse('https://robin.humilis.net/flutter/listapp/login.php'),
-      body: {'username': username, 'password': password},
+      body: {'username': username, 'password': passwordHash},
     );
 
     if (response.statusCode == 200) {
@@ -101,8 +110,8 @@ class _LoginPageState extends State<LoginPage> {
     final String username = _usernameController.text;
     final String password = _passwordController.text;
     final String confirmPassword = _confirmPasswordController.text;
+    final String passwordHash = hashPassword(_passwordController.text);
 
-    // Check if both fields are filled in and passwords match
     if (username.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
       setState(() {
         _errorText = 'All fields are required';
@@ -119,7 +128,7 @@ class _LoginPageState extends State<LoginPage> {
 
     final response = await http.post(
         Uri.parse('https://robin.humilis.net/flutter/listapp/register.php'),
-        body: {'username': username, 'password': password});
+        body: {'username': username, 'password': passwordHash});
 
     if (response.statusCode == 200) {
       final String responseBody = response.body;

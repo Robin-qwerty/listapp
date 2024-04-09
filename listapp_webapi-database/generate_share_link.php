@@ -11,9 +11,14 @@ if (isset($_POST['userId']) && isset($_POST['listId'])) {
         $query = "SELECT COUNT(*) AS count FROM users WHERE userid = ? AND archive = 0";
         $statement = $conn->prepare($query);
         $statement->execute([$userId]);
-        $row = $statement->fetch(PDO::FETCH_ASSOC);
+        $user = $statement->fetch(PDO::FETCH_ASSOC);
 
-        if ($row['count'] > 0) {
+        $query = "SELECT COUNT(*) AS count FROM lists WHERE id = ? AND archive = 0";
+        $statement = $conn->prepare($query);
+        $statement->execute([$listId]);
+        $list = $statement->fetch(PDO::FETCH_ASSOC);
+
+        if ($user['count'] > 0 && $list['count'] > 0) {
             $query = "SELECT id FROM listgrouplink WHERE owner = ? AND listid = ?";
             $statement = $conn->prepare($query);
             $statement->execute([$userId, $listId]);

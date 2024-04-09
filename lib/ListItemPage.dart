@@ -1,6 +1,7 @@
 import 'package:flutter_slidable/flutter_slidable.dart';
-import 'package:flutter/material.dart';
+import 'package:clipboard/clipboard.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter/material.dart';
 import 'dart:convert';
 
 class ListItemsPage extends StatefulWidget {
@@ -16,8 +17,8 @@ class ListItemsPage extends StatefulWidget {
 }
 
 class _ListItemsPageState extends State<ListItemsPage> {
-  TextEditingController _itemNameController = TextEditingController();
-  FocusNode _itemNameFocusNode = FocusNode();
+  final TextEditingController _itemNameController = TextEditingController();
+  final FocusNode _itemNameFocusNode = FocusNode();
 
   @override
   void dispose() {
@@ -40,15 +41,18 @@ class _ListItemsPageState extends State<ListItemsPage> {
 
   Future<void> _editItem(
       BuildContext context, int itemId, String itemName) async {
-    TextEditingController _itemNameController =
+    TextEditingController itemNameController =
         TextEditingController(text: itemName);
+    final messenger = ScaffoldMessenger.of(context);
+
     await showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
           title: const Text('Edit Item'),
-          content: TextField(
-            controller: _itemNameController,
+          content: TextFormField(
+            controller: itemNameController,
+            autofocus: true, // Focus on the end and open keyboard automatically
             decoration: const InputDecoration(hintText: 'Enter New Item Name'),
           ),
           actions: [
@@ -68,15 +72,21 @@ class _ListItemsPageState extends State<ListItemsPage> {
                   body: {
                     'userId': widget.userId,
                     'itemId': itemId.toString(),
-                    'itemName': _itemNameController.text
+                    'itemName': itemNameController.text
                   },
                 );
                 // print('Response: ${response.body}');
                 if (response.statusCode == 200) {
                   setState(() {});
-                  print('Item name updated successfully');
                 } else {
-                  print('Failed to update item name');
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                          'Failed to add list item, Please try again later'),
+                      duration: Duration(seconds: 3),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
                 }
               },
               child: const Text('Save'),
@@ -106,6 +116,7 @@ class _ListItemsPageState extends State<ListItemsPage> {
         const SnackBar(
           content: Text('Something went wrong, Please try again later'),
           duration: Duration(seconds: 3),
+          backgroundColor: Colors.red,
         ),
       );
     }
@@ -128,18 +139,24 @@ class _ListItemsPageState extends State<ListItemsPage> {
         ),
         SlidableAction(
           onPressed: (context) {
-            // Handle check action
             _updateItemArchive(context, item['id'], 1);
           },
           backgroundColor: Colors.green,
           icon: Icons.check,
         ),
+        SlidableAction(
+          onPressed: (context) {
+            FlutterClipboard.copy(item['item_name'].toString())
+                .then((value) => print('Copied to clipboard'));
+          },
+          backgroundColor: Colors.blue,
+          icon: Icons.content_copy,
+        ),
       ];
-    } else if (item['archive'] == 1) {
+    } else {
       return [
         SlidableAction(
           onPressed: (context) {
-            // Handle restore action
             _updateItemArchive(context, item['id'], 0);
           },
           backgroundColor: Colors.green,
@@ -147,15 +164,12 @@ class _ListItemsPageState extends State<ListItemsPage> {
         ),
         SlidableAction(
           onPressed: (context) {
-            // Handle delete action
             _updateItemArchive(context, item['id'], 2);
           },
           backgroundColor: Colors.red,
           icon: Icons.delete,
         ),
       ];
-    } else {
-      return [];
     }
   }
 
@@ -185,6 +199,7 @@ class _ListItemsPageState extends State<ListItemsPage> {
                 content:
                     Text('Failed to add list item, Please try again later'),
                 duration: Duration(seconds: 3),
+                backgroundColor: Colors.red,
               ),
             );
           }
@@ -193,6 +208,7 @@ class _ListItemsPageState extends State<ListItemsPage> {
             const SnackBar(
               content: Text('Failed to add list item, Please try again later'),
               duration: Duration(seconds: 3),
+              backgroundColor: Colors.red,
             ),
           );
         }
@@ -201,6 +217,7 @@ class _ListItemsPageState extends State<ListItemsPage> {
           const SnackBar(
             content: Text('Failed to add list item, Please try again later'),
             duration: Duration(seconds: 3),
+            backgroundColor: Colors.red,
           ),
         );
         print('Error: $e');
@@ -218,6 +235,9 @@ class _ListItemsPageState extends State<ListItemsPage> {
             context: context,
             builder: (context) {
               FocusScope.of(context).requestFocus(_itemNameFocusNode);
+              Future.delayed(const Duration(milliseconds: 100), () {
+                _itemNameFocusNode.requestFocus();
+              });
               return StatefulBuilder(
                 builder: (context, setState) {
                   return AlertDialog(

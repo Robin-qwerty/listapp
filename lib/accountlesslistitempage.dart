@@ -1,4 +1,5 @@
 import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:clipboard/clipboard.dart';
 import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -15,8 +16,8 @@ class ListItemsPage extends StatefulWidget {
 }
 
 class _ListItemsPageState extends State<ListItemsPage> {
-  TextEditingController _itemNameController = TextEditingController();
-  FocusNode _itemNameFocusNode = FocusNode();
+  final TextEditingController _itemNameController = TextEditingController();
+  final FocusNode _itemNameFocusNode = FocusNode();
   late Database _database;
 
   @override
@@ -34,23 +35,24 @@ class _ListItemsPageState extends State<ListItemsPage> {
         'my_lists.db',
         version: 1,
         onCreate: (db, version) async {
-        // Create tables
-        await db.execute('''
+          await db.execute('''
         CREATE TABLE lists (
           id INTEGER PRIMARY KEY,
           name TEXT NOT NULL,
-          archive INTEGER NOT NULL DEFAULT 0
+          archive TINYINT NOT NULL DEFAULT 0,
+          uploaded TINYINT NOT NULL DEFAULT 0
         )
         ''');
-        await db.execute('''
+          await db.execute('''
         CREATE TABLE items (
           id INTEGER PRIMARY KEY,
           list_id INTEGER NOT NULL,
           item_name TEXT NOT NULL,
-          archive INTEGER NOT NULL DEFAULT 0
+          archive TINYINT NOT NULL DEFAULT 0,
+          uploaded TINYINT NOT NULL DEFAULT 0
         )
         ''');
-      },
+        },
       );
     } catch (e) {
       print('Error initializing database: $e');
@@ -67,7 +69,7 @@ class _ListItemsPageState extends State<ListItemsPage> {
   }
 
   Future<List<Map<String, dynamic>>> _fetchItems() async {
-    // Fetch items from the local database
+    await _initDatabase();
     final List<Map<String, dynamic>> items = await _database.query(
       'items',
       where: 'list_id = ?',
@@ -78,44 +80,115 @@ class _ListItemsPageState extends State<ListItemsPage> {
 
   Future<void> _editItem(
       BuildContext context, int itemId, String itemName) async {
-    TextEditingController _itemNameController =
+    TextEditingController itemNameController =
         TextEditingController(text: itemName);
-    await showDialog(
+    final messenger = ScaffoldMessenger.of(context);
+
+    showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text('Edit Item'),
-          content: TextField(
-            controller: _itemNameController,
-            decoration: const InputDecoration(hintText: 'Enter New Item Name'),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () async {
-                Navigator.pop(context);
-                // Update item from list in localdatabase
-              },
-              child: const Text('Save'),
-            ),
-          ],
+        return Builder(
+          builder: (context) {
+            FocusScope.of(context).requestFocus(_itemNameFocusNode);
+            Future.delayed(const Duration(milliseconds: 100), () {
+              _itemNameFocusNode.requestFocus();
+            });
+
+            return AlertDialog(
+              title: const Text('Edit Item'),
+              content: TextField(
+                controller: itemNameController,
+                focusNode: _itemNameFocusNode,
+                decoration: const InputDecoration(
+                  hintText: 'Enter New Item Name',
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    final newName = itemNameController.text;
+                    if (newName.isNotEmpty) {
+                      try {
+                        await _database.update(
+                          'items',
+                          {'item_name': newName},
+                          where: 'id = ?',
+                          whereArgs: [itemId],
+                        );
+                        setState(() {});
+                      } catch (e) {
+                        messenger.showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                                'Failed to add list item, Please try again later'),
+                            duration: Duration(seconds: 3),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
   }
 
+  Future<void> _addItem(String itemName) async {
+    try {
+      await _database.insert(
+        'items',
+        {'list_id': widget.listId, 'item_name': itemName},
+      );
+      setState(() {});
+      _itemNameController.clear();
+    } catch (e) {
+      print('Error adding list item: $e');
+    }
+  }
+
   Future<void> _updateItemArchive(
       BuildContext context, int itemId, int archiveStatus) async {
-    // update archive status of list item in localdatabase
+    try {
+      await _database.update(
+        'items',
+        {'archive': archiveStatus},
+        where: 'id = ?',
+        whereArgs: [itemId],
+      );
+      setState(() {});
+    } catch (e) {
+      print('Error updating item archive status: $e');
+    }
+  }
+
+  Future<void> _deleteItem(BuildContext context, int itemId) async {
+    try {
+      await _database.delete(
+        'items',
+        where: 'id = ?',
+        whereArgs: [itemId],
+      );
+      setState(() {});
+    } catch (e) {
+      print('Error deleting item: $e');
+    }
   }
 
   List<Widget> _buildSlidableActions(
       BuildContext context, Map<String, dynamic> item) {
+    final messenger = ScaffoldMessenger.of(context);
     if (item['archive'] == 0) {
       return [
         SlidableAction(
@@ -131,18 +204,30 @@ class _ListItemsPageState extends State<ListItemsPage> {
         ),
         SlidableAction(
           onPressed: (context) {
-            // Handle check action
             _updateItemArchive(context, item['id'], 1);
           },
           backgroundColor: Colors.green,
           icon: Icons.check,
         ),
+        SlidableAction(
+          onPressed: (context) {
+            FlutterClipboard.copy(item['item_name'].toString())
+                .then((value) => print('Copied to clipboard'));
+            messenger.showSnackBar(
+              const SnackBar(
+                content: Text('Item contens copyed to clipboard!'),
+                duration: Duration(seconds: 3),
+              ),
+            );
+          },
+          backgroundColor: Colors.blue,
+          icon: Icons.content_copy,
+        ),
       ];
-    } else if (item['archive'] == 1) {
+    } else {
       return [
         SlidableAction(
           onPressed: (context) {
-            // Handle restore action
             _updateItemArchive(context, item['id'], 0);
           },
           backgroundColor: Colors.green,
@@ -150,33 +235,17 @@ class _ListItemsPageState extends State<ListItemsPage> {
         ),
         SlidableAction(
           onPressed: (context) {
-            // Handle delete action
-            _updateItemArchive(context, item['id'], 2);
+            _deleteItem(context, item['id']);
           },
           backgroundColor: Colors.red,
           icon: Icons.delete,
         ),
       ];
-    } else {
-      return [];
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final messenger = ScaffoldMessenger.of(context);
-    Future<void> _addItem(String itemName) async {
-      try {} catch (e) {
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text('Failed to add list item, Please try again later'),
-            duration: Duration(seconds: 3),
-          ),
-        );
-        print('Error: $e');
-      }
-    }
-
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.listName),

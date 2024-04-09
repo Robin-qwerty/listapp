@@ -4,8 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:share/share.dart';
-import 'dart:convert';
 import 'listitempage.dart';
+import 'dart:convert';
 
 class MyLists extends StatefulWidget {
   final String userId;
@@ -62,6 +62,7 @@ class _ListsPageState extends State<MyLists> {
             const SnackBar(
               content: Text('List added Failed, Please try again later'),
               duration: Duration(seconds: 3),
+              backgroundColor: Colors.red,
             ),
           );
         }
@@ -70,6 +71,7 @@ class _ListsPageState extends State<MyLists> {
           const SnackBar(
             content: Text('List added Failed, Please try again later'),
             duration: Duration(seconds: 3),
+            backgroundColor: Colors.red,
           ),
         );
       }
@@ -157,6 +159,7 @@ class _ListsPageState extends State<MyLists> {
         const SnackBar(
           content: Text('Something went wrong, Please try again later'),
           duration: Duration(seconds: 3),
+          backgroundColor: Colors.red,
         ),
       );
     }
@@ -229,6 +232,7 @@ class _ListsPageState extends State<MyLists> {
                     content: Text(
                         'Failed to update lists name, Please try again later'),
                     duration: Duration(seconds: 3),
+                    backgroundColor: Colors.red,
                   ),
                 );
               }
@@ -238,6 +242,7 @@ class _ListsPageState extends State<MyLists> {
                   content: Text(
                       'Failed to update lists name, Please try again later'),
                   duration: Duration(seconds: 3),
+                  backgroundColor: Colors.red,
                 ),
               );
             }
@@ -296,6 +301,7 @@ class _ListsPageState extends State<MyLists> {
                     content: Text(
                         'Failed to delete this list, Please try again later'),
                     duration: Duration(seconds: 3),
+                    backgroundColor: Colors.red,
                   ),
                 );
               }
@@ -305,6 +311,7 @@ class _ListsPageState extends State<MyLists> {
                   content: Text(
                       'Failed to delete this list, Please try again later'),
                   duration: Duration(seconds: 3),
+                  backgroundColor: Colors.red,
                 ),
               );
             }
@@ -449,7 +456,6 @@ class _ListsPageState extends State<MyLists> {
               },
             ),
           ),
-          // Instructional ListTile
           const ListTile(
             leading: Icon(Icons.swipe),
             title:

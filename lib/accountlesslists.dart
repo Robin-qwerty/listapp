@@ -14,8 +14,10 @@ class MyAccountlessLists extends StatefulWidget {
 }
 
 class _ListsPageState extends State<MyAccountlessLists> {
-  final TextEditingController _listNameController = TextEditingController();
-  final FocusNode _listNameFocusNode = FocusNode();
+  final TextEditingController _listNameaddController = TextEditingController();
+  final TextEditingController _listNameeditController = TextEditingController();
+  final FocusNode _listNameaddFocusNode = FocusNode();
+  final FocusNode _listNameeditFocusNode = FocusNode();
   bool isLoading = false;
 
   late Database _database;
@@ -23,64 +25,85 @@ class _ListsPageState extends State<MyAccountlessLists> {
   @override
   void initState() {
     super.initState();
-    _initDatabase();
+    _initDatabase().then((database) {
+      _database = database;
+    });
   }
 
-  Future<void> _initDatabase() async {
-    print('_initDatabase');
-    // Open the database or create if not exists
-    _database = await openDatabase(
-      'my_lists.db',
-      version: 1,
-      onCreate: (db, version) async {
-        // Create tables
-        await db.execute('''
+  Future<Database> _initDatabase() async {
+    try {
+      return await openDatabase(
+        'my_lists.db',
+        version: 1,
+        onCreate: (db, version) async {
+          await db.execute('''
         CREATE TABLE lists (
           id INTEGER PRIMARY KEY,
           name TEXT NOT NULL,
-          archive INTEGER NOT NULL DEFAULT 0
+          archive TINYINT NOT NULL DEFAULT 0,
+          uploaded TINYINT NOT NULL DEFAULT 0
         )
         ''');
-        await db.execute('''
+          await db.execute('''
         CREATE TABLE items (
           id INTEGER PRIMARY KEY,
           list_id INTEGER NOT NULL,
           item_name TEXT NOT NULL,
-          archive INTEGER NOT NULL DEFAULT 0
+          archive TINYINT NOT NULL DEFAULT 0,
+          uploaded TINYINT NOT NULL DEFAULT 0
         )
         ''');
-      },
-    );
+        },
+      );
+    } catch (e) {
+      print('Error initializing database: $e');
+      throw e;
+    }
   }
 
   @override
   void dispose() {
-    _listNameController.dispose();
-    _listNameFocusNode.dispose();
-    if (widget.userId == '0') {
-      _database.close();
-    }
+    _listNameaddController.dispose();
+    _listNameaddFocusNode.dispose();
+    _listNameeditController.dispose();
+    _listNameeditFocusNode.dispose();
+    _database.close();
     super.dispose();
   }
 
   Future<List<Map<String, dynamic>>> _fetchLists() async {
-    // Ensure _database is initialized
     await _initDatabase();
-    // Fetch lists from the local database
     final List<Map<String, dynamic>> lists = await _database.query('lists');
     return lists;
   }
 
   Future<void> _addList(String listName) async {
+    final messenger = ScaffoldMessenger.of(context);
     if (widget.userId == '0') {
-      // Add a list to the local database
-      await _database.insert(
-        'lists',
-        {'name': listName},
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
-      // Refresh the UI
-      setState(() {});
+      try {
+        await _database.insert(
+          'lists',
+          {'name': listName},
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('List added!'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+        setState(() {});
+        _listNameaddController.clear();
+      } catch (e) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Failed to add list, try again later'),
+            duration: Duration(seconds: 3),
+            backgroundColor: Colors.red,
+          ),
+        );
+        throw e;
+      }
     } else {
       Navigator.pushReplacement(
         context,
@@ -98,12 +121,16 @@ class _ListsPageState extends State<MyAccountlessLists> {
           String? editedName = await showDialog(
             context: context,
             builder: (context) {
-              TextEditingController _editListNameController =
+              FocusScope.of(context).requestFocus(_listNameeditFocusNode);
+              TextEditingController _listNameeditController =
                   TextEditingController(text: list['name']);
+              _listNameeditController.selection = TextSelection.collapsed(
+                  offset: _listNameeditController.text.length);
               return AlertDialog(
                 title: const Text('Edit List Name'),
                 content: TextField(
-                  controller: _editListNameController,
+                  controller: _listNameeditController,
+                  focusNode: _listNameeditFocusNode,
                   decoration:
                       const InputDecoration(hintText: 'Enter List Name'),
                 ),
@@ -114,10 +141,11 @@ class _ListsPageState extends State<MyAccountlessLists> {
                   ),
                   TextButton(
                     onPressed: () async {
-                      if (_editListNameController.text.isNotEmpty) {
+                      final newName = _listNameeditController.text;
+                      if (newName.isNotEmpty) {
                         await _database.update(
                           'lists',
-                          {'name': _editListNameController.text},
+                          {'name': newName},
                           where: 'id = ?',
                           whereArgs: [list['id']],
                         );
@@ -131,12 +159,6 @@ class _ListsPageState extends State<MyAccountlessLists> {
               );
             },
           );
-
-          // Update the list name in the local database
-          if (editedName != null && editedName.isNotEmpty) {
-            // Update the list name in the local database
-            // This logic is now handled inside the Save button onPressed callback
-          }
         },
         backgroundColor: Colors.orange,
         icon: Icons.create_outlined,
@@ -157,25 +179,41 @@ class _ListsPageState extends State<MyAccountlessLists> {
                 ),
                 TextButton(
                   onPressed: () async {
-                    await _database.delete(
-                      'lists',
-                      where: 'id = ?',
-                      whereArgs: [list['id']],
-                    );
-                    setState(() {});
-                    Navigator.of(context).pop(true);
+                    if (_database.isOpen) {
+                      try {
+                        await _database.delete(
+                          'lists',
+                          where: 'id = ?',
+                          whereArgs: [list['id']],
+                        );
+                        setState(() {});
+                        Navigator.of(context).pop(true);
+                      } catch (error) {
+                        print('Error deleting list: $error');
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                                'Failed to delete list. Please try again.'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    } else {
+                      print('Database is closed. Unable to delete list.');
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                              'Database is closed. Unable to delete list.'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
                   },
                   child: const Text('Delete'),
                 ),
               ],
             ),
           );
-
-          // Delete a list from the local database
-          if (confirmDelete == true) {
-            // Delete a list from the local database
-            // This logic is now handled inside the Delete button onPressed callback
-          }
         },
         backgroundColor: Colors.red,
         icon: Icons.delete,
@@ -195,14 +233,14 @@ class _ListsPageState extends State<MyAccountlessLists> {
           showDialog(
             context: context,
             builder: (context) {
-              FocusScope.of(context).requestFocus(_listNameFocusNode);
+              FocusScope.of(context).requestFocus(_listNameaddFocusNode);
               return StatefulBuilder(
                 builder: (context, setState) {
                   return AlertDialog(
                     title: const Text('Create a new list'),
                     content: TextField(
-                      controller: _listNameController,
-                      focusNode: _listNameFocusNode,
+                      controller: _listNameaddController,
+                      focusNode: _listNameaddFocusNode,
                       decoration:
                           const InputDecoration(hintText: 'Enter List Name'),
                       onChanged: (value) {
@@ -215,10 +253,10 @@ class _ListsPageState extends State<MyAccountlessLists> {
                         child: const Text('Cancel'),
                       ),
                       TextButton(
-                        onPressed: _listNameController.text.isEmpty
+                        onPressed: _listNameaddController.text.isEmpty
                             ? null
                             : () {
-                                _addList(_listNameController.text);
+                                _addList(_listNameaddController.text);
                                 Navigator.pop(context);
                               },
                         child: const Text('Add'),
@@ -243,7 +281,6 @@ class _ListsPageState extends State<MyAccountlessLists> {
                   print(snapshot.error);
                   return Center(child: Text('Error: ${snapshot.error}'));
                 } else if (snapshot.data!.isEmpty) {
-                  // If the user has no lists
                   return const Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,

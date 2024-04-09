@@ -1,8 +1,8 @@
 import 'package:flutter_slidable/flutter_slidable.dart';
-import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'listitempage.dart';
+import 'dart:convert';
 
 class MyGroupLists extends StatefulWidget {
   final String userId;
@@ -14,8 +14,8 @@ class MyGroupLists extends StatefulWidget {
 }
 
 class _MyGroupListsState extends State<MyGroupLists> {
-  TextEditingController _groupCodeController = TextEditingController();
-  FocusNode _groupCodeFocusNode = FocusNode();
+  final TextEditingController _groupCodeController = TextEditingController();
+  final FocusNode _groupCodeFocusNode = FocusNode();
 
   @override
   void dispose() {
@@ -62,6 +62,7 @@ class _MyGroupListsState extends State<MyGroupLists> {
             const SnackBar(
               content: Text('Failed to join group, Please try again later'),
               duration: Duration(seconds: 3),
+              backgroundColor: Colors.red,
             ),
           );
         }
@@ -70,6 +71,7 @@ class _MyGroupListsState extends State<MyGroupLists> {
           const SnackBar(
             content: Text('Failed to join group, Please try again later'),
             duration: Duration(seconds: 3),
+            backgroundColor: Colors.red,
           ),
         );
       }
@@ -135,6 +137,7 @@ class _MyGroupListsState extends State<MyGroupLists> {
                     content: Text(
                         'Failed to leave the group list, Please try again later'),
                     duration: Duration(seconds: 3),
+                    backgroundColor: Colors.red,
                   ),
                 );
               }
@@ -145,6 +148,7 @@ class _MyGroupListsState extends State<MyGroupLists> {
                   content: Text(
                       'Failed to leave the group list, Please try again later'),
                   duration: Duration(seconds: 3),
+                  backgroundColor: Colors.red,
                 ),
               );
             }
@@ -266,7 +270,6 @@ class _MyGroupListsState extends State<MyGroupLists> {
               },
             ),
           ),
-          // Instructional ListTile
           const ListTile(
             leading: Icon(Icons.swipe),
             title: Text('Swipe left or right to Leave a list'),

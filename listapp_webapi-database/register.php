@@ -4,17 +4,14 @@ ini_set('display_errors', 1);
 require_once 'private/dbconnect.php';
 
 try {
-    // Check if both username and password are provided
     if (!isset($_POST['username'], $_POST['password'])) {
         echo "ERROR3";
         exit;
     }
 
-    // Get username and password from request
     $username = $_POST['username'];
     $password = $_POST['password'];
 
-    // Check if username is already taken
     $sql = "SELECT COUNT(*) AS count FROM users WHERE username = ?";
     $stmt = $conn->prepare($sql);
     $stmt->bindParam(1, $username);

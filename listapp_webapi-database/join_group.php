@@ -7,9 +7,8 @@ if (isset($_POST['userId']) && isset($_POST['groupCode'])) {
     $userId = $_POST['userId'];
     $groupCode = $_POST['groupCode'];
 
-    // try {
-        // Check if the user with the provided userId exists
-        $query = "SELECT * FROM users WHERE userid = ?";
+    try {
+        $query = "SELECT * FROM users WHERE userid = ? AND archive = 0";
         $statement = $conn->prepare($query);
         $statement->execute([$userId]);
         $user = $statement->fetch(PDO::FETCH_ASSOC);
@@ -55,9 +54,9 @@ if (isset($_POST['userId']) && isset($_POST['groupCode'])) {
         } else {
             echo json_encode(['message' => 'Error: Group code not found or expired']);
         }
-    // } catch (PDOException $e) {
-    //     echo json_encode(['message' => 'Error: ' . $e->getMessage()]);
-    // }
+    } catch (PDOException $e) {
+        echo json_encode(['message' => 'Error: ' . $e->getMessage()]);
+    }
 } else {
     echo json_encode(['message' => 'Error: Missing parameters']);
 }
