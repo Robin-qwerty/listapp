@@ -1,7 +1,9 @@
 import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:connectivity/connectivity.dart';
 import 'package:clipboard/clipboard.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
+import 'package:sqflite/sqflite.dart';
 import 'dart:convert';
 
 class ListItemsPage extends StatefulWidget {
@@ -27,15 +29,77 @@ class _ListItemsPageState extends State<ListItemsPage> {
     super.dispose();
   }
 
-  Future<List<Map<String, dynamic>>> _fetchItems() async {
-    final response = await http.post(
-      Uri.parse('https://robin.humilis.net/flutter/listapp/list_items.php'),
-      body: {'userId': widget.userId, 'listId': widget.listId.toString()},
-    );
-    if (response.statusCode == 200) {
-      return List<Map<String, dynamic>>.from(json.decode(response.body));
+  void initState() {
+    super.initState();
+    _initDatabase().then((database) {
+      _checkConnectivityAndFetchItems();
+    });
+  }
+
+  Future<Database> _initDatabase() async {
+    try {
+      return await openDatabase(
+        'my_lists.db',
+        version: 1,
+        onCreate: (db, version) async {
+          await db.execute('''
+        CREATE TABLE lists (
+          id INTEGER PRIMARY KEY,
+          name TEXT NOT NULL,
+          archive TINYINT NOT NULL DEFAULT 0,
+          uploaded TINYINT NOT NULL DEFAULT 0
+        )
+        ''');
+          await db.execute('''
+        CREATE TABLE items (
+          id INTEGER PRIMARY KEY,
+          list_id INTEGER NOT NULL,
+          item_name TEXT NOT NULL,
+          archive TINYINT NOT NULL DEFAULT 0,
+          uploaded TINYINT NOT NULL DEFAULT 0
+        )
+        ''');
+        },
+      );
+    } catch (e) {
+      print('Error initializing database: $e');
+      throw e;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>>? _checkConnectivityAndFetchItems() async {
+    var connectivityResult = await Connectivity().checkConnectivity();
+    if (connectivityResult == ConnectivityResult.none) {
+      return _fetchItemsFromLocal();
     } else {
-      throw Exception('Failed to load items');
+      return _fetchItems();
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchItemsFromLocal() async {
+    final Database database = await _initDatabase();
+    final List<Map<String, dynamic>> localLists = await database.query(
+      'items',
+      where: 'list_id = ?',
+      whereArgs: [widget.listId],
+    );
+    return localLists;
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchItems() async {
+    var connectivityResult = await Connectivity().checkConnectivity();
+    if (connectivityResult == ConnectivityResult.none) {
+      return [];
+    } else {
+      final response = await http.post(
+        Uri.parse('https://robin.humilis.net/flutter/listapp/list_items.php'),
+        body: {'userId': widget.userId, 'listId': widget.listId.toString()},
+      );
+      if (response.statusCode == 200) {
+        return List<Map<String, dynamic>>.from(json.decode(response.body));
+      } else {
+        throw Exception('Failed to load items');
+      }
     }
   }
 
@@ -52,7 +116,7 @@ class _ListItemsPageState extends State<ListItemsPage> {
           title: const Text('Edit Item'),
           content: TextFormField(
             controller: itemNameController,
-            autofocus: true, // Focus on the end and open keyboard automatically
+            autofocus: true,
             decoration: const InputDecoration(hintText: 'Enter New Item Name'),
           ),
           actions: [
@@ -65,7 +129,6 @@ class _ListItemsPageState extends State<ListItemsPage> {
             TextButton(
               onPressed: () async {
                 Navigator.pop(context);
-                // Send request to update item name
                 final response = await http.post(
                   Uri.parse(
                       'https://robin.humilis.net/flutter/listapp/list_items.php'),

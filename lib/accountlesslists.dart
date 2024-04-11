@@ -114,51 +114,10 @@ class _ListsPageState extends State<MyAccountlessLists> {
 
   List<Widget> _buildSlidableActions(
       BuildContext context, Map<String, dynamic> list) {
-    final messenger = ScaffoldMessenger.of(context);
+    ScaffoldMessenger.of(context);
     return [
       SlidableAction(
         onPressed: (context) async {
-          String? editedName = await showDialog(
-            context: context,
-            builder: (context) {
-              FocusScope.of(context).requestFocus(_listNameeditFocusNode);
-              TextEditingController _listNameeditController =
-                  TextEditingController(text: list['name']);
-              _listNameeditController.selection = TextSelection.collapsed(
-                  offset: _listNameeditController.text.length);
-              return AlertDialog(
-                title: const Text('Edit List Name'),
-                content: TextField(
-                  controller: _listNameeditController,
-                  focusNode: _listNameeditFocusNode,
-                  decoration:
-                      const InputDecoration(hintText: 'Enter List Name'),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancel'),
-                  ),
-                  TextButton(
-                    onPressed: () async {
-                      final newName = _listNameeditController.text;
-                      if (newName.isNotEmpty) {
-                        await _database.update(
-                          'lists',
-                          {'name': newName},
-                          where: 'id = ?',
-                          whereArgs: [list['id']],
-                        );
-                        setState(() {});
-                      }
-                      Navigator.pop(context);
-                    },
-                    child: const Text('Save'),
-                  ),
-                ],
-              );
-            },
-          );
         },
         backgroundColor: Colors.orange,
         icon: Icons.create_outlined,

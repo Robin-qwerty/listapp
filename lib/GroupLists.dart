@@ -1,4 +1,5 @@
 import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:connectivity/connectivity.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'listitempage.dart';
@@ -25,16 +26,30 @@ class _MyGroupListsState extends State<MyGroupLists> {
   }
 
   Future<List<Map<String, dynamic>>> _fetchGroupLists() async {
-    final response = await http.post(
-      Uri.parse(
-          'https://robin.humilis.net/flutter/listapp/get_group_lists.php'),
-      body: {'userId': widget.userId},
-    );
-
-    if (response.statusCode == 200) {
-      return List<Map<String, dynamic>>.from(jsonDecode(response.body));
+    final messenger = ScaffoldMessenger.of(context);
+    var connectivityResult = await Connectivity().checkConnectivity();
+    if (connectivityResult == ConnectivityResult.none) {
+      return [];
     } else {
-      throw Exception('Failed to fetch group lists');
+      final response = await http.post(
+        Uri.parse(
+            'https://robin.humilis.net/flutter/listapp/get_group_lists.php'),
+        body: {'userId': widget.userId},
+      );
+
+      if (response.statusCode == 200) {
+        return List<Map<String, dynamic>>.from(jsonDecode(response.body));
+      } else {
+        messenger.showSnackBar(
+          const SnackBar(
+            content:
+                Text('Failed to get your group lists, Please try again later'),
+            duration: Duration(seconds: 3),
+            backgroundColor: Colors.red,
+          ),
+        );
+        throw Exception('Failed to fetch group lists');
+      }
     }
   }
 
@@ -51,6 +66,17 @@ class _MyGroupListsState extends State<MyGroupLists> {
           messenger.showSnackBar(
             const SnackBar(
               content: Text('Joined group successfully'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+          setState(() {});
+          _groupCodeController.clear();
+          // print('Response: ${response.body}');
+        } else if (responseData['message'] ==
+            'User is already a member of this group') {
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text('You are already a member of this group'),
               duration: Duration(seconds: 3),
             ),
           );
@@ -116,7 +142,6 @@ class _MyGroupListsState extends State<MyGroupLists> {
           );
 
           if (confirmLeave == true) {
-            // Send a web request to leave the group list
             final response = await http.post(
               Uri.parse(
                   'https://robin.humilis.net/flutter/listapp/leave_group_list.php'),
@@ -219,7 +244,6 @@ class _MyGroupListsState extends State<MyGroupLists> {
                 } else if (snapshot.hasError) {
                   return Center(child: Text('Error: ${snapshot.error}'));
                 } else if (snapshot.data!.isEmpty) {
-                  // If the user has no group lists
                   return const Center(
                     child: Text('You don\'t have any group lists.'),
                   );

@@ -1,4 +1,5 @@
 import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:connectivity/connectivity.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
@@ -28,13 +29,114 @@ class _ListsPageState extends State<MyLists> {
     super.dispose();
   }
 
-  Future<List<Map<String, dynamic>>> _fetchLists() async {
-    final response = await http.get(Uri.parse(
-        'https://robin.humilis.net/flutter/listapp/mylist.php?userid=${widget.userId}'));
-    if (response.statusCode == 200) {
-      return List<Map<String, dynamic>>.from(json.decode(response.body));
+  void initState() {
+    super.initState();
+    _initDatabase().then((database) {
+      _dumpDatabase(database);
+      _checkConnectivityAndFetchLists();
+    });
+  }
+
+  Future<Database> _initDatabase() async {
+    try {
+      return await openDatabase(
+        'my_lists.db',
+        version: 1,
+        onCreate: (db, version) async {
+          await db.execute('''
+        CREATE TABLE lists (
+          id INTEGER PRIMARY KEY,
+          name TEXT NOT NULL,
+          archive TINYINT NOT NULL DEFAULT 0,
+          uploaded TINYINT NOT NULL DEFAULT 0
+        )
+        ''');
+          await db.execute('''
+        CREATE TABLE items (
+          id INTEGER PRIMARY KEY,
+          list_id INTEGER NOT NULL,
+          item_name TEXT NOT NULL,
+          archive TINYINT NOT NULL DEFAULT 0,
+          uploaded TINYINT NOT NULL DEFAULT 0
+        )
+        ''');
+        },
+      );
+    } catch (e) {
+      print('Error initializing database: $e');
+      throw e;
+    }
+  }
+
+  void _dumpDatabase(Database database) async {
+    final List<Map<String, dynamic>> localLists = await database.query('lists');
+    final List<Map<String, dynamic>> localItems = await database.query('items');
+
+    print('Lists:');
+    localLists.forEach((list) => print(list));
+    print('Items:');
+    localItems.forEach((item) => print(item));
+  }
+
+  Future<List<Map<String, dynamic>>>? _checkConnectivityAndFetchLists() async {
+    final messenger = ScaffoldMessenger.of(context);
+    var connectivityResult = await Connectivity().checkConnectivity();
+    if (connectivityResult == ConnectivityResult.none) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Failed to Connect to the internet, changes won\'t be saved online and can\'t access group lists.'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return _fetchListsFromLocal();
     } else {
-      throw Exception('Failed to load lists');
+      return _fetchListsFromWeb();
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchListsFromLocal() async {
+    final Database database = await _initDatabase();
+    final List<Map<String, dynamic>> localLists = await database.query('lists');
+    return localLists;
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchListsFromWeb() async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final response = await http.get(Uri.parse(
+          'https://robin.humilis.net/flutter/listapp/mylist.php?userid=${widget.userId}'));
+      if (response.statusCode == 200) {
+        final List<Map<String, dynamic>> webLists =
+            List<Map<String, dynamic>>.from(json.decode(response.body));
+
+        final Database database = await _initDatabase();
+
+        await database.delete('lists');
+
+        for (final list in webLists) {
+          await database.insert('lists', list,
+              conflictAlgorithm: ConflictAlgorithm.ignore);
+        }
+
+        return webLists;
+      } else {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Failed to load lists'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+        throw Exception('Failed to load lists');
+      }
+    } catch (e) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Failed to load lists'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+      throw e;
     }
   }
 
@@ -382,7 +484,7 @@ class _ListsPageState extends State<MyLists> {
         children: [
           Expanded(
             child: FutureBuilder<List<Map<String, dynamic>>>(
-              future: _fetchLists(),
+              future: _checkConnectivityAndFetchLists(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());

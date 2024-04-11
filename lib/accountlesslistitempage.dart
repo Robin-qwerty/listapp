@@ -146,6 +146,7 @@ class _ListItemsPageState extends State<ListItemsPage> {
   }
 
   Future<void> _addItem(String itemName) async {
+    final messenger = ScaffoldMessenger.of(context);
     try {
       await _database.insert(
         'items',
@@ -155,11 +156,19 @@ class _ListItemsPageState extends State<ListItemsPage> {
       _itemNameController.clear();
     } catch (e) {
       print('Error adding list item: $e');
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Failed to add list item, Please try again later'),
+          duration: Duration(seconds: 3),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
   Future<void> _updateItemArchive(
       BuildContext context, int itemId, int archiveStatus) async {
+    final messenger = ScaffoldMessenger.of(context);
     try {
       await _database.update(
         'items',
@@ -170,10 +179,19 @@ class _ListItemsPageState extends State<ListItemsPage> {
       setState(() {});
     } catch (e) {
       print('Error updating item archive status: $e');
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Failed to update status of list item, Please try again later'),
+          duration: Duration(seconds: 3),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
   Future<void> _deleteItem(BuildContext context, int itemId) async {
+    final messenger = ScaffoldMessenger.of(context);
     try {
       await _database.delete(
         'items',
@@ -183,6 +201,13 @@ class _ListItemsPageState extends State<ListItemsPage> {
       setState(() {});
     } catch (e) {
       print('Error deleting item: $e');
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Failed to delete list item, Please try again later'),
+          duration: Duration(seconds: 3),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 

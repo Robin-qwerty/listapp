@@ -25,8 +25,8 @@ class LoginPage extends StatefulWidget {
 }
 
 String hashPassword(String password) {
-  var bytes = utf8.encode(password); // Encode the password as UTF-8
-  var digest = sha256.convert(bytes); // Generate SHA-256 hash
+  var bytes = utf8.encode(password);
+  var digest = sha256.convert(bytes);
   return digest.toString();
 }
 
@@ -34,7 +34,7 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
-      TextEditingController(); // Added
+      TextEditingController();
   final storage = const FlutterSecureStorage();
   String _errorText = '';
   bool _isLogin = true;
@@ -151,8 +151,7 @@ class _LoginPageState extends State<LoginPage> {
           _confirmPasswordController.clear();
         });
       } else if (_isNumeric(responseBody)) {
-        final userId =
-            responseBody;
+        final userId = responseBody;
         await storage.write(key: 'userId', value: userId);
 
         Navigator.pushReplacement(
