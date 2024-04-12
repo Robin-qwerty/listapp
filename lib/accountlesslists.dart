@@ -47,7 +47,7 @@ class _ListsPageState extends State<MyAccountlessLists> {
           await db.execute('''
         CREATE TABLE items (
           id INTEGER PRIMARY KEY,
-          list_id INTEGER NOT NULL,
+          listid INTEGER NOT NULL,
           item_name TEXT NOT NULL,
           archive TINYINT NOT NULL DEFAULT 0,
           uploaded TINYINT NOT NULL DEFAULT 0

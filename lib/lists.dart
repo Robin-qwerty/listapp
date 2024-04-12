@@ -54,7 +54,7 @@ class _ListsPageState extends State<MyLists> {
           await db.execute('''
         CREATE TABLE items (
           id INTEGER PRIMARY KEY,
-          list_id INTEGER NOT NULL,
+          listid INTEGER NOT NULL,
           item_name TEXT NOT NULL,
           archive TINYINT NOT NULL DEFAULT 0,
           uploaded TINYINT NOT NULL DEFAULT 0
@@ -130,12 +130,6 @@ class _ListsPageState extends State<MyLists> {
         throw Exception('Failed to load lists');
       }
     } catch (e) {
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Failed to load lists'),
-          duration: Duration(seconds: 3),
-        ),
-      );
       throw e;
     }
   }

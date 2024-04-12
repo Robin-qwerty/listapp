@@ -42,22 +42,22 @@ class _ListItemsPageState extends State<ListItemsPage> {
         'my_lists.db',
         version: 1,
         onCreate: (db, version) async {
-          await db.execute('''
-        CREATE TABLE lists (
-          id INTEGER PRIMARY KEY,
-          name TEXT NOT NULL,
-          archive TINYINT NOT NULL DEFAULT 0,
-          uploaded TINYINT NOT NULL DEFAULT 0
-        )
+        await db.execute('''
+          CREATE TABLE lists (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            archive TINYINT NOT NULL DEFAULT 0,
+            uploaded TINYINT NOT NULL DEFAULT 0
+          )
         ''');
-          await db.execute('''
-        CREATE TABLE items (
-          id INTEGER PRIMARY KEY,
-          list_id INTEGER NOT NULL,
-          item_name TEXT NOT NULL,
-          archive TINYINT NOT NULL DEFAULT 0,
-          uploaded TINYINT NOT NULL DEFAULT 0
-        )
+        await db.execute('''
+          CREATE TABLE items (
+            id INTEGER PRIMARY KEY,
+            listid INTEGER NOT NULL,
+            item_name TEXT NOT NULL,
+            archive TINYINT NOT NULL DEFAULT 0,
+            uploaded TINYINT NOT NULL DEFAULT 0
+          )
         ''');
         },
       );
@@ -80,7 +80,7 @@ class _ListItemsPageState extends State<ListItemsPage> {
     final Database database = await _initDatabase();
     final List<Map<String, dynamic>> localLists = await database.query(
       'items',
-      where: 'list_id = ?',
+      where: 'listid = ?',
       whereArgs: [widget.listId],
     );
     return localLists;
@@ -96,7 +96,19 @@ class _ListItemsPageState extends State<ListItemsPage> {
         body: {'userId': widget.userId, 'listId': widget.listId.toString()},
       );
       if (response.statusCode == 200) {
-        return List<Map<String, dynamic>>.from(json.decode(response.body));
+        final List<Map<String, dynamic>> webItems =
+            List<Map<String, dynamic>>.from(json.decode(response.body));
+
+        final Database database = await _initDatabase();
+
+        await database.delete('lists');
+
+        for (final list in webItems) {
+          await database.insert('items', list,
+              conflictAlgorithm: ConflictAlgorithm.ignore);
+        }
+
+        return webItems;
       } else {
         throw Exception('Failed to load items');
       }
