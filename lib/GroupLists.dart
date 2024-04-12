@@ -192,6 +192,7 @@ class _MyGroupListsState extends State<MyGroupLists> {
         title: const Text('Group Lists'),
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'add_group_list',
         child: const Icon(Icons.add),
         onPressed: () {
           showDialog(
@@ -280,6 +281,7 @@ class _MyGroupListsState extends State<MyGroupLists> {
                                   builder: (context) => ListItemsPage(
                                     userId: widget.userId,
                                     listId: list['id'],
+                                    listUserId: list['userid'],
                                     listName: list['name'],
                                   ),
                                 ),

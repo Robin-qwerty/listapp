@@ -36,22 +36,22 @@ class _ListItemsPageState extends State<ListItemsPage> {
         version: 1,
         onCreate: (db, version) async {
           await db.execute('''
-        CREATE TABLE lists (
-          id INTEGER PRIMARY KEY,
-          name TEXT NOT NULL,
-          archive TINYINT NOT NULL DEFAULT 0,
-          uploaded TINYINT NOT NULL DEFAULT 0
-        )
-        ''');
+            CREATE TABLE lists (
+              id INTEGER PRIMARY KEY,
+              name TEXT NOT NULL,
+              archive TINYINT NOT NULL DEFAULT 0,
+              uploaded TINYINT NOT NULL DEFAULT 0
+            )
+          ''');
           await db.execute('''
-        CREATE TABLE items (
-          id INTEGER PRIMARY KEY,
-          listid INTEGER NOT NULL,
-          item_name TEXT NOT NULL,
-          archive TINYINT NOT NULL DEFAULT 0,
-          uploaded TINYINT NOT NULL DEFAULT 0
-        )
-        ''');
+            CREATE TABLE items (
+              id INTEGER PRIMARY KEY,
+              listid INTEGER NOT NULL,
+              item_name TEXT NOT NULL,
+              archive TINYINT NOT NULL DEFAULT 0,
+              uploaded TINYINT NOT NULL DEFAULT 0
+            )
+          ''');
         },
       );
     } catch (e) {
@@ -276,6 +276,7 @@ class _ListItemsPageState extends State<ListItemsPage> {
         title: Text(widget.listName),
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'add_item_accountless',
         child: const Icon(Icons.add),
         onPressed: () {
           showDialog(

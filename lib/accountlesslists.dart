@@ -37,22 +37,22 @@ class _ListsPageState extends State<MyAccountlessLists> {
         version: 1,
         onCreate: (db, version) async {
           await db.execute('''
-        CREATE TABLE lists (
-          id INTEGER PRIMARY KEY,
-          name TEXT NOT NULL,
-          archive TINYINT NOT NULL DEFAULT 0,
-          uploaded TINYINT NOT NULL DEFAULT 0
-        )
-        ''');
+            CREATE TABLE lists (
+              id INTEGER PRIMARY KEY,
+              name TEXT NOT NULL,
+              archive TINYINT NOT NULL DEFAULT 0,
+              uploaded TINYINT NOT NULL DEFAULT 0
+            )
+          ''');
           await db.execute('''
-        CREATE TABLE items (
-          id INTEGER PRIMARY KEY,
-          listid INTEGER NOT NULL,
-          item_name TEXT NOT NULL,
-          archive TINYINT NOT NULL DEFAULT 0,
-          uploaded TINYINT NOT NULL DEFAULT 0
-        )
-        ''');
+            CREATE TABLE items (
+              id INTEGER PRIMARY KEY,
+              listid INTEGER NOT NULL,
+              item_name TEXT NOT NULL,
+              archive TINYINT NOT NULL DEFAULT 0,
+              uploaded TINYINT NOT NULL DEFAULT 0
+            )
+          ''');
         },
       );
     } catch (e) {
@@ -117,8 +117,7 @@ class _ListsPageState extends State<MyAccountlessLists> {
     ScaffoldMessenger.of(context);
     return [
       SlidableAction(
-        onPressed: (context) async {
-        },
+        onPressed: (context) async {},
         backgroundColor: Colors.orange,
         icon: Icons.create_outlined,
       ),
@@ -187,6 +186,7 @@ class _ListsPageState extends State<MyAccountlessLists> {
         title: const Text('My Lists'),
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'add_list_accountless',
         child: const Icon(Icons.add),
         onPressed: () {
           showDialog(

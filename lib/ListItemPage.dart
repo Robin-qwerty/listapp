@@ -8,11 +8,15 @@ import 'dart:convert';
 
 class ListItemsPage extends StatefulWidget {
   final String userId;
+  final int? listUserId;
   final int listId;
   final String listName;
 
   ListItemsPage(
-      {required this.userId, required this.listId, required this.listName});
+      {required this.userId,
+      required this.listUserId,
+      required this.listId,
+      required this.listName});
 
   @override
   _ListItemsPageState createState() => _ListItemsPageState();
@@ -21,6 +25,7 @@ class ListItemsPage extends StatefulWidget {
 class _ListItemsPageState extends State<ListItemsPage> {
   final TextEditingController _itemNameController = TextEditingController();
   final FocusNode _itemNameFocusNode = FocusNode();
+  bool connected = true;
 
   @override
   void dispose() {
@@ -42,23 +47,23 @@ class _ListItemsPageState extends State<ListItemsPage> {
         'my_lists.db',
         version: 1,
         onCreate: (db, version) async {
-        await db.execute('''
-          CREATE TABLE lists (
-            id INTEGER PRIMARY KEY,
-            name TEXT NOT NULL,
-            archive TINYINT NOT NULL DEFAULT 0,
-            uploaded TINYINT NOT NULL DEFAULT 0
-          )
-        ''');
-        await db.execute('''
-          CREATE TABLE items (
-            id INTEGER PRIMARY KEY,
-            listid INTEGER NOT NULL,
-            item_name TEXT NOT NULL,
-            archive TINYINT NOT NULL DEFAULT 0,
-            uploaded TINYINT NOT NULL DEFAULT 0
-          )
-        ''');
+          await db.execute('''
+            CREATE TABLE lists (
+              id INTEGER PRIMARY KEY,
+              name TEXT NOT NULL,
+              archive TINYINT NOT NULL DEFAULT 0,
+              uploaded TINYINT NOT NULL DEFAULT 0
+            )
+          ''');
+          await db.execute('''
+            CREATE TABLE items (
+              id INTEGER PRIMARY KEY,
+              listid INTEGER NOT NULL,
+              item_name TEXT NOT NULL,
+              archive TINYINT NOT NULL DEFAULT 0,
+              uploaded TINYINT NOT NULL DEFAULT 0
+            )
+          ''');
         },
       );
     } catch (e) {
@@ -70,6 +75,7 @@ class _ListItemsPageState extends State<ListItemsPage> {
   Future<List<Map<String, dynamic>>>? _checkConnectivityAndFetchItems() async {
     var connectivityResult = await Connectivity().checkConnectivity();
     if (connectivityResult == ConnectivityResult.none) {
+      connected = false;
       return _fetchItemsFromLocal();
     } else {
       return _fetchItems();
@@ -78,12 +84,13 @@ class _ListItemsPageState extends State<ListItemsPage> {
 
   Future<List<Map<String, dynamic>>> _fetchItemsFromLocal() async {
     final Database database = await _initDatabase();
-    final List<Map<String, dynamic>> localLists = await database.query(
+    final List<Map<String, dynamic>> localItems = await database.query(
       'items',
-      where: 'listid = ?',
+      where: 'listid = ? and archive != 2',
       whereArgs: [widget.listId],
+      orderBy: 'archive ASC',
     );
-    return localLists;
+    return localItems;
   }
 
   Future<List<Map<String, dynamic>>> _fetchItems() async {
@@ -99,13 +106,28 @@ class _ListItemsPageState extends State<ListItemsPage> {
         final List<Map<String, dynamic>> webItems =
             List<Map<String, dynamic>>.from(json.decode(response.body));
 
-        final Database database = await _initDatabase();
+        if (widget.userId.toString() == widget.listUserId.toString()) {
+          final Database database = await _initDatabase();
 
-        await database.delete('lists');
+          try {
+            List<Map<String, dynamic>> tables = await database.rawQuery(
+              "SELECT name FROM sqlite_master WHERE type='table';",
+            );
+            for (var table in tables) {
+              String tableName = table['name'];
 
-        for (final list in webItems) {
-          await database.insert('items', list,
-              conflictAlgorithm: ConflictAlgorithm.ignore);
+              List<Map<String, dynamic>> columns = await database.rawQuery(
+                "PRAGMA table_info($tableName);",
+              );
+            }
+          } catch (e) {
+            print("Error printing database schema: $e");
+          }
+
+          for (final item in webItems) {
+            await database.insert('items', item,
+                conflictAlgorithm: ConflictAlgorithm.ignore);
+          }
         }
 
         return webItems;
@@ -140,28 +162,54 @@ class _ListItemsPageState extends State<ListItemsPage> {
             ),
             TextButton(
               onPressed: () async {
-                Navigator.pop(context);
-                final response = await http.post(
-                  Uri.parse(
-                      'https://robin.humilis.net/flutter/listapp/list_items.php'),
-                  body: {
-                    'userId': widget.userId,
-                    'itemId': itemId.toString(),
-                    'itemName': itemNameController.text
-                  },
-                );
-                // print('Response: ${response.body}');
-                if (response.statusCode == 200) {
-                  setState(() {});
-                } else {
-                  messenger.showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                          'Failed to add list item, Please try again later'),
-                      duration: Duration(seconds: 3),
-                      backgroundColor: Colors.red,
-                    ),
+                if (connected) {
+                  Navigator.pop(context);
+                  final response = await http.post(
+                    Uri.parse(
+                        'https://robin.humilis.net/flutter/listapp/list_items.php'),
+                    body: {
+                      'userId': widget.userId,
+                      'itemId': itemId.toString(),
+                      'itemName': itemNameController.text
+                    },
                   );
+                  // print('Response: ${response.body}');
+                  if (response.statusCode == 200) {
+                    setState(() {});
+                  } else {
+                    messenger.showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                            'Failed to add list item, Please try again later'),
+                        duration: Duration(seconds: 3),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                } else {
+                  Navigator.pop(context);
+                  try {
+                    final Database database = await _initDatabase();
+                    await database.update(
+                      'items',
+                      {
+                        'item_name': itemNameController.text,
+                      },
+                      where: 'id = ?',
+                      whereArgs: [itemId],
+                    );
+                    setState(() {});
+                  } catch (e) {
+                    print('Error updating list item name in database: $e');
+                    messenger.showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                            'Failed to update list item name in the local database (offline)'),
+                        duration: Duration(seconds: 3),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
                 }
               },
               child: const Text('Save'),
@@ -175,30 +223,56 @@ class _ListItemsPageState extends State<ListItemsPage> {
   Future<void> _updateItemArchive(
       BuildContext context, int itemId, int archiveStatus) async {
     final messenger = ScaffoldMessenger.of(context);
-    final response = await http.post(
-      Uri.parse('https://robin.humilis.net/flutter/listapp/list_items.php'),
-      body: {
-        'userId': widget.userId,
-        'itemId': itemId.toString(),
-        'archiveStatus': archiveStatus.toString()
-      },
-    );
-    // print('Response: ${response.body}');
-    if (response.statusCode == 200) {
-      setState(() {});
-    } else {
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Something went wrong, Please try again later'),
-          duration: Duration(seconds: 3),
-          backgroundColor: Colors.red,
-        ),
+    if (connected) {
+      final response = await http.post(
+        Uri.parse('https://robin.humilis.net/flutter/listapp/list_items.php'),
+        body: {
+          'userId': widget.userId,
+          'itemId': itemId.toString(),
+          'archiveStatus': archiveStatus.toString()
+        },
       );
+      // print('Response: ${response.body}');
+      if (response.statusCode == 200) {
+        setState(() {});
+      } else {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Something went wrong, Please try again later'),
+            duration: Duration(seconds: 3),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } else {
+      try {
+        final Database database = await _initDatabase();
+        await database.update(
+          'items',
+          {
+            'archive': archiveStatus,
+          },
+          where: 'id = ?',
+          whereArgs: [itemId],
+        );
+        setState(() {});
+      } catch (e) {
+        print('Error updating archive status of list item in database: $e');
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text(
+                'Failed to update archive status of list item in the local database (offline)'),
+            duration: Duration(seconds: 3),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
   List<Widget> _buildSlidableActions(
       BuildContext context, Map<String, dynamic> item) {
+    final messenger = ScaffoldMessenger.of(context);
     if (item['archive'] == 0) {
       return [
         SlidableAction(
@@ -222,7 +296,12 @@ class _ListItemsPageState extends State<ListItemsPage> {
         SlidableAction(
           onPressed: (context) {
             FlutterClipboard.copy(item['item_name'].toString())
-                .then((value) => print('Copied to clipboard'));
+                .then((value) => messenger.showSnackBar(
+                      const SnackBar(
+                        content: Text('Item copyed to clipboard'),
+                        duration: Duration(seconds: 3),
+                      ),
+                    ));
           },
           backgroundColor: Colors.blue,
           icon: Icons.content_copy,
@@ -252,22 +331,33 @@ class _ListItemsPageState extends State<ListItemsPage> {
   Widget build(BuildContext context) {
     final messenger = ScaffoldMessenger.of(context);
     Future<void> _addItem(String itemName) async {
-      try {
-        final response = await http.post(
-          Uri.parse('https://robin.humilis.net/flutter/listapp/add_item.php'),
-          body: {
-            'userId': widget.userId,
-            'listId': widget.listId.toString(),
-            'itemName': itemName
-          },
-        );
-        final responseData = jsonDecode(response.body);
-        // print('Response: ${response.body}');
-        if (response.statusCode == 200) {
-          if (responseData['success'] == true) {
-            setState(() {});
-            _itemNameController.clear();
-            // print('Response: ${response.body}');
+      if (connected) {
+        try {
+          final response = await http.post(
+            Uri.parse('https://robin.humilis.net/flutter/listapp/add_item.php'),
+            body: {
+              'userId': widget.userId,
+              'listId': widget.listId.toString(),
+              'itemName': itemName
+            },
+          );
+          final responseData = jsonDecode(response.body);
+          // print('Response: ${response.body}');
+          if (response.statusCode == 200) {
+            if (responseData['success'] == true) {
+              setState(() {});
+              _itemNameController.clear();
+              // print('Response: ${response.body}');
+            } else {
+              messenger.showSnackBar(
+                const SnackBar(
+                  content:
+                      Text('Failed to add list item, Please try again later'),
+                  duration: Duration(seconds: 3),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
           } else {
             messenger.showSnackBar(
               const SnackBar(
@@ -278,7 +368,7 @@ class _ListItemsPageState extends State<ListItemsPage> {
               ),
             );
           }
-        } else {
+        } catch (e) {
           messenger.showSnackBar(
             const SnackBar(
               content: Text('Failed to add list item, Please try again later'),
@@ -286,16 +376,34 @@ class _ListItemsPageState extends State<ListItemsPage> {
               backgroundColor: Colors.red,
             ),
           );
+          print('Error: $e');
         }
-      } catch (e) {
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text('Failed to add list item, Please try again later'),
-            duration: Duration(seconds: 3),
-            backgroundColor: Colors.red,
-          ),
-        );
-        print('Error: $e');
+      } else {
+        try {
+          final Database database = await _initDatabase();
+          await database.insert(
+            'items',
+            {
+              'listid': widget.listId,
+              'item_name': itemName,
+              'archive': 0,
+              'uploaded': 0,
+            },
+            conflictAlgorithm: ConflictAlgorithm.ignore,
+          );
+          setState(() {});
+          _itemNameController.clear();
+        } catch (e) {
+          print('Error inserting list item into database: $e');
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'Failed to insert list item in the local database (offline)'),
+              duration: Duration(seconds: 3),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
 
@@ -304,6 +412,7 @@ class _ListItemsPageState extends State<ListItemsPage> {
         title: Text(widget.listName),
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'add_item',
         child: const Icon(Icons.add),
         onPressed: () {
           showDialog(
@@ -349,7 +458,7 @@ class _ListItemsPageState extends State<ListItemsPage> {
         },
       ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
-        future: _fetchItems(),
+        future: _checkConnectivityAndFetchItems(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
