@@ -13,12 +13,13 @@ if (isset($_POST['userId'])) {
         $row = $statement->fetch(PDO::FETCH_ASSOC);
 
         if ($row['count'] > 0) {
-            $query = "SELECT l.*
-                FROM lists l, listgrouplink lg, listgroup g
-                WHERE l.id = lg.listid
-                AND lg.id = g.listgrouplinkid
-                AND g.userid = ?
-                AND l.archive = 0";
+            $query = "SELECT l.*, COUNT(g.id) AS shared_with_count
+                FROM lists l
+                LEFT JOIN listgrouplink lg ON l.id = lg.listid
+                LEFT JOIN listgroup g ON lg.id = g.listgrouplinkid
+                WHERE g.userid = ?
+                AND l.archive = 0
+                GROUP BY l.id";
             $statement = $conn->prepare($query);
             $statement->execute([$userId]);
             $lists = $statement->fetchAll(PDO::FETCH_ASSOC);

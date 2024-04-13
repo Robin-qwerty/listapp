@@ -253,6 +253,9 @@ class _MyGroupListsState extends State<MyGroupLists> {
                     itemCount: snapshot.data!.length,
                     itemBuilder: (context, index) {
                       final list = snapshot.data![index];
+                      print(list);
+                      final sharedWithCount = list['shared_with_count'];
+
                       return Slidable(
                         startActionPane: ActionPane(
                           motion: DrawerMotion(),
@@ -269,10 +272,34 @@ class _MyGroupListsState extends State<MyGroupLists> {
                           margin: const EdgeInsets.symmetric(
                               vertical: 8, horizontal: 16),
                           child: ListTile(
-                            title: Text(
-                              list['name'].toString(),
-                              style: const TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.bold),
+                            title: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    list['name'].toString(),
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                if (sharedWithCount != null &&
+                                    sharedWithCount > 0)
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.group,
+                                          color: Colors.grey, size: 18),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        '($sharedWithCount)',
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                              ],
                             ),
                             onTap: () {
                               Navigator.push(

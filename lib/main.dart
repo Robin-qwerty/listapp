@@ -7,7 +7,6 @@ import 'login.dart';
 import 'lists.dart';
 
 void main() {
-  print("main");
   runApp(MyApp());
 }
 
@@ -43,7 +42,6 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   final storage = const FlutterSecureStorage();
-
   late Future<bool> _loggedInFuture;
 
   @override
@@ -54,7 +52,6 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    print("build1");
     return MaterialApp(
       title: 'Login App',
       home: FutureBuilder(
@@ -78,7 +75,6 @@ class _MyAppState extends State<MyApp> {
                   ),
                 );
               });
-              print("build2");
               return Container();
             }
           }
@@ -88,7 +84,6 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<bool> _checkLoggedIn() async {
-    print("_checkLoggedIn");
     try {
       final userId = await storage.read(key: 'userId');
       print('User ID from secure storage: $userId');
@@ -108,19 +103,20 @@ class MainApp extends StatefulWidget {
 class _MainAppState extends State<MainApp> {
   int _selectedIndex = 0;
   String? userId;
+  bool _userIdLoaded = false;
 
   @override
   void initState() {
-    print("initState");
     super.initState();
     _loadUserId();
   }
 
   Future<void> _loadUserId() async {
-    print("_loadUserId");
     final storage = FlutterSecureStorage();
     userId = await storage.read(key: 'userId');
-    setState(() {});
+    setState(() {
+      _userIdLoaded = true;
+    });
   }
 
   void _logout(BuildContext context) async {
@@ -133,6 +129,14 @@ class _MainAppState extends State<MainApp> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_userIdLoaded) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     List<Widget> pages = [
       if (userId != '0') MyLists(userId: userId ?? ''),
       if (userId != '0') MyGroupLists(userId: userId ?? ''),
@@ -162,9 +166,8 @@ class _MainAppState extends State<MainApp> {
               ],
               currentIndex: _selectedIndex,
               onTap: (index) {
-                setState(() {
-                  _selectedIndex = index;
-                });
+                _selectedIndex = index;
+                setState(() {});
               },
             )
           : null,

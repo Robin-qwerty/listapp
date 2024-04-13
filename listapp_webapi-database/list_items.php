@@ -30,7 +30,7 @@ if (isset($_POST['userId']) && isset($_POST['listId']) || isset($_POST['itemName
                 $updateStatement->execute([$itemName, $itemId]);
                 echo json_encode(['success' => true, 'message' => 'Item name updated successfully']);
             } else {
-                $query = "SELECT * FROM items WHERE `list-id` = ? AND archive != 2 ORDER BY archive ASC";
+                $query = "SELECT * FROM items WHERE `listid` = ? AND archive != 2 ORDER BY archive ASC";
                 $statement = $conn->prepare($query);
                 $statement->execute([$listId]);
                 $lists = $statement->fetchAll(PDO::FETCH_ASSOC);

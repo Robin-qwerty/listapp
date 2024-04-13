@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost
--- Gegenereerd op: 09 apr 2024 om 21:52
+-- Gegenereerd op: 13 apr 2024 om 13:06
 -- Serverversie: 10.11.3-MariaDB
 -- PHP-versie: 8.2.6
 
@@ -41,7 +41,7 @@ CREATE TABLE `invite` (
 
 CREATE TABLE `items` (
   `id` int(11) NOT NULL,
-  `list-id` int(11) NOT NULL,
+  `listid` int(11) NOT NULL,
   `item_name` varchar(255) NOT NULL,
   `archive` tinyint(4) NOT NULL DEFAULT 0 COMMENT '1=crossed out\r\n2=deleted'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

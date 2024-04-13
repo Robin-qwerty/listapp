@@ -24,12 +24,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_GET["deleteuser"])) {
             $statement->execute([$userId]);
 
             // Delete items associated with the user from 'items' table
-            $query = "DELETE FROM items WHERE `list-id` IN (SELECT id FROM lists WHERE userid = ?)";
+            $query = "DELETE FROM items WHERE `listid` IN (SELECT id FROM lists WHERE userid = ?)";
             $statement = $conn->prepare($query);
             $statement->execute([$userId]);
 
             // Delete tasks associated with the user from 'tasks' table
-            $query = "DELETE FROM tasks WHERE `list-id` IN (SELECT id FROM lists WHERE userid = ?)";
+            $query = "DELETE FROM tasks WHERE `listid` IN (SELECT id FROM lists WHERE userid = ?)";
             $statement = $conn->prepare($query);
             $statement->execute([$userId]);
 

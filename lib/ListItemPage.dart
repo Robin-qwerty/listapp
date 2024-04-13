@@ -36,9 +36,7 @@ class _ListItemsPageState extends State<ListItemsPage> {
 
   void initState() {
     super.initState();
-    _initDatabase().then((database) {
-      _checkConnectivityAndFetchItems();
-    });
+    _initDatabase().then((database) {});
   }
 
   Future<Database> _initDatabase() async {
@@ -94,51 +92,45 @@ class _ListItemsPageState extends State<ListItemsPage> {
   }
 
   Future<List<Map<String, dynamic>>> _fetchItems() async {
-    var connectivityResult = await Connectivity().checkConnectivity();
-    if (connectivityResult == ConnectivityResult.none) {
-      return [];
-    } else {
+    final Database database = await _initDatabase();
+    final messenger = ScaffoldMessenger.of(context);
+
+    try {
       final response = await http.post(
         Uri.parse('https://robin.humilis.net/flutter/listapp/list_items.php'),
-        body: {'userId': widget.userId, 'listId': widget.listId.toString()},
+        body: {
+          'userId': widget.userId,
+          'listId': widget.listId.toString(),
+        },
       );
+
       if (response.statusCode == 200) {
         final List<Map<String, dynamic>> webItems =
             List<Map<String, dynamic>>.from(json.decode(response.body));
 
-        if (widget.userId.toString() == widget.listUserId.toString()) {
-          final Database database = await _initDatabase();
-
-          try {
-            List<Map<String, dynamic>> tables = await database.rawQuery(
-              "SELECT name FROM sqlite_master WHERE type='table';",
-            );
-            for (var table in tables) {
-              String tableName = table['name'];
-
-              List<Map<String, dynamic>> columns = await database.rawQuery(
-                "PRAGMA table_info($tableName);",
-              );
-            }
-          } catch (e) {
-            print("Error printing database schema: $e");
-          }
-
-          for (final item in webItems) {
-            await database.insert('items', item,
-                conflictAlgorithm: ConflictAlgorithm.ignore);
-          }
+        for (final item in webItems) {
+          await database.insert('items', item,
+              conflictAlgorithm: ConflictAlgorithm.ignore);
         }
 
         return webItems;
       } else {
         throw Exception('Failed to load items');
       }
+    } catch (e) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Something really went wrong. Please try again later.'),
+          duration: Duration(seconds: 3),
+          backgroundColor: Colors.red,
+        ),
+      );
+      throw e;
     }
   }
 
   Future<void> _editItem(
-      BuildContext context, int itemId, String itemName) async {
+      BuildContext context, int itemId, String itemName, item) async {
     TextEditingController itemNameController =
         TextEditingController(text: itemName);
     final messenger = ScaffoldMessenger.of(context);
@@ -194,10 +186,12 @@ class _ListItemsPageState extends State<ListItemsPage> {
                       'items',
                       {
                         'item_name': itemNameController.text,
+                        'uploaded': (item['uploaded'] != 2) ? 1 : 2,
                       },
                       where: 'id = ?',
                       whereArgs: [itemId],
                     );
+
                     setState(() {});
                   } catch (e) {
                     print('Error updating list item name in database: $e');
@@ -221,8 +215,10 @@ class _ListItemsPageState extends State<ListItemsPage> {
   }
 
   Future<void> _updateItemArchive(
-      BuildContext context, int itemId, int archiveStatus) async {
+      BuildContext context, int itemId, int archiveStatus, item) async {
+    final Database database = await _initDatabase();
     final messenger = ScaffoldMessenger.of(context);
+
     if (connected) {
       final response = await http.post(
         Uri.parse('https://robin.humilis.net/flutter/listapp/list_items.php'),
@@ -233,6 +229,15 @@ class _ListItemsPageState extends State<ListItemsPage> {
         },
       );
       // print('Response: ${response.body}');
+
+      if (archiveStatus == 2) {
+        await database.delete(
+          'items',
+          where: 'id = ?',
+          whereArgs: [itemId],
+        );
+      }
+
       if (response.statusCode == 200) {
         setState(() {});
       } else {
@@ -251,10 +256,12 @@ class _ListItemsPageState extends State<ListItemsPage> {
           'items',
           {
             'archive': archiveStatus,
+            'uploaded': (item['uploaded'] != 2) ? 1 : 2,
           },
           where: 'id = ?',
           whereArgs: [itemId],
         );
+
         setState(() {});
       } catch (e) {
         print('Error updating archive status of list item in database: $e');
@@ -278,7 +285,7 @@ class _ListItemsPageState extends State<ListItemsPage> {
         SlidableAction(
           onPressed: (context) {
             if (item['item_name'] != null) {
-              _editItem(context, item['id'], item['item_name']);
+              _editItem(context, item['id'], item['item_name'], item);
             } else {
               print('Item name is null');
             }
@@ -288,7 +295,7 @@ class _ListItemsPageState extends State<ListItemsPage> {
         ),
         SlidableAction(
           onPressed: (context) {
-            _updateItemArchive(context, item['id'], 1);
+            _updateItemArchive(context, item['id'], 1, item);
           },
           backgroundColor: Colors.green,
           icon: Icons.check,
@@ -311,14 +318,14 @@ class _ListItemsPageState extends State<ListItemsPage> {
       return [
         SlidableAction(
           onPressed: (context) {
-            _updateItemArchive(context, item['id'], 0);
+            _updateItemArchive(context, item['id'], 0, item);
           },
           backgroundColor: Colors.green,
           icon: Icons.restore,
         ),
         SlidableAction(
           onPressed: (context) {
-            _updateItemArchive(context, item['id'], 2);
+            _updateItemArchive(context, item['id'], 2, item);
           },
           backgroundColor: Colors.red,
           icon: Icons.delete,
@@ -347,7 +354,6 @@ class _ListItemsPageState extends State<ListItemsPage> {
             if (responseData['success'] == true) {
               setState(() {});
               _itemNameController.clear();
-              // print('Response: ${response.body}');
             } else {
               messenger.showSnackBar(
                 const SnackBar(
@@ -387,10 +393,11 @@ class _ListItemsPageState extends State<ListItemsPage> {
               'listid': widget.listId,
               'item_name': itemName,
               'archive': 0,
-              'uploaded': 0,
+              'uploaded': 2,
             },
             conflictAlgorithm: ConflictAlgorithm.ignore,
           );
+
           setState(() {});
           _itemNameController.clear();
         } catch (e) {

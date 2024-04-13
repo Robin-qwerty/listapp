@@ -34,7 +34,7 @@ class _ListsPageState extends State<MyLists> {
     super.initState();
     _initDatabase().then((database) {
       _dumpDatabase(database);
-      _checkConnectivityAndFetchLists();
+      // pr
     });
   }
 
@@ -109,13 +109,137 @@ class _ListsPageState extends State<MyLists> {
   Future<List<Map<String, dynamic>>> _fetchListsFromWeb() async {
     final messenger = ScaffoldMessenger.of(context);
     try {
-      final response = await http.get(Uri.parse(
-          'https://robin.humilis.net/flutter/listapp/mylist.php?userid=${widget.userId}'));
-      if (response.statusCode == 200) {
-        final List<Map<String, dynamic>> webLists =
-            List<Map<String, dynamic>>.from(json.decode(response.body));
+      final Database database = await _initDatabase();
+      final List<Map<String, dynamic>> localLists = await database.query(
+        'lists',
+        where: 'uploaded != ?',
+        whereArgs: [0],
+      );
 
-        final Database database = await _initDatabase();
+      if (localLists.isNotEmpty) {
+        final List<Map<String, dynamic>> listsToSend = localLists.map((list) {
+          return {
+            'id': list['id'],
+            'name': list['name'],
+            'archive': list['archive'],
+            'uploaded': list['uploaded'],
+          };
+        }).toList();
+
+        final response = await http.post(
+          Uri.parse(
+              'https://robin.humilis.net/flutter/listapp/uploadlists.php'),
+          body: {
+            'userid': widget.userId,
+            'lists': jsonEncode({'lists': listsToSend}),
+          },
+        );
+
+        if (response.statusCode == 200) {
+          // print(response.body);
+          final responseData = jsonDecode(response.body);
+          if (responseData['success'] == true) {
+            for (final list in localLists) {
+              await database.update(
+                'lists',
+                {'uploaded': 0},
+                where: 'id = ?',
+                whereArgs: [list['id']],
+              );
+              await database.delete('lists', where: 'archive = 1');
+            }
+
+            print('Lists uploaded succesfully to server');
+          } else {
+            messenger.showSnackBar(
+              const SnackBar(
+                content: Text('Something went wrong when uploading lists'),
+                duration: Duration(seconds: 3),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        } else {
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text('Something went wrong when uploading lists'),
+              duration: Duration(seconds: 5),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+
+      final List<Map<String, dynamic>> localItems = await database.query(
+        'items',
+        where: 'uploaded != ?',
+        whereArgs: [0],
+      );
+
+      if (localItems.isNotEmpty) {
+        final List<Map<String, dynamic>> itemsToSend = localItems.map((item) {
+          return {
+            'id': item['id'],
+            'listid': item['listid'],
+            'item_name': item['item_name'],
+            'archive': item['archive'],
+            'uploaded': item['uploaded'],
+          };
+        }).toList();
+
+        final response = await http.post(
+          Uri.parse(
+              'https://robin.humilis.net/flutter/listapp/uploaditems.php'),
+          body: {
+            'userId': widget.userId,
+            'items': jsonEncode({'items': itemsToSend}),
+          },
+        );
+
+        if (response.statusCode == 200) {
+          print(response.body);
+          final responseData = jsonDecode(response.body);
+          if (responseData['success'] == true) {
+            for (final item in localItems) {
+              await database.update(
+                'items',
+                {'uploaded': 0},
+                where: 'id = ?',
+                whereArgs: [item['id']],
+              );
+            }
+
+            print('Items uploaded successfully to server');
+          } else {
+            messenger.showSnackBar(
+              const SnackBar(
+                content: Text('Something went wrong when uploading items'),
+                duration: Duration(seconds: 3),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        } else {
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text('Something went wrong when uploading items'),
+              duration: Duration(seconds: 5),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+
+      final responselists = await http.post(
+        Uri.parse('https://robin.humilis.net/flutter/listapp/mylist.php'),
+        body: {
+          'userid': widget.userId,
+        },
+      );
+
+      if (responselists.statusCode == 200) {
+        final List<Map<String, dynamic>> webLists =
+            List<Map<String, dynamic>>.from(json.decode(responselists.body));
 
         for (final list in webLists) {
           final listWithoutUserId = Map<String, dynamic>.from(list);
@@ -131,11 +255,20 @@ class _ListsPageState extends State<MyLists> {
           const SnackBar(
             content: Text('Failed to load lists'),
             duration: Duration(seconds: 3),
+            backgroundColor: Colors.red,
           ),
         );
-        throw Exception('Failed to load lists');
+        print('Failed to load lists');
+        return [];
       }
     } catch (e) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Something really went wrong. Please try again later.'),
+          duration: Duration(seconds: 3),
+          backgroundColor: Colors.red,
+        ),
+      );
       throw e;
     }
   }
@@ -158,6 +291,7 @@ class _ListsPageState extends State<MyLists> {
                 duration: Duration(seconds: 3),
               ),
             );
+
             setState(() {});
             _listNameController.clear();
           } else {
@@ -184,13 +318,14 @@ class _ListsPageState extends State<MyLists> {
     } else {
       final Database database = await _initDatabase();
       try {
-        await database.insert('lists', {'name': listName, 'uploaded': 1});
+        await database.insert('lists', {'name': listName, 'uploaded': 2});
         messenger.showSnackBar(
           const SnackBar(
             content: Text('List added successfully (offline)'),
             duration: Duration(seconds: 3),
           ),
         );
+
         setState(() {});
         _listNameController.clear();
       } catch (e) {
@@ -341,6 +476,7 @@ class _ListsPageState extends State<MyLists> {
             },
           );
 
+          final Database database = await _initDatabase();
           if (connected) {
             if (editedName != null && editedName.isNotEmpty) {
               final response = await http.post(
@@ -361,6 +497,7 @@ class _ListsPageState extends State<MyLists> {
                       duration: Duration(seconds: 3),
                     ),
                   );
+
                   setState(() {});
                   _listNameController.clear();
                   // print('Response: ${response.body}');
@@ -387,13 +524,16 @@ class _ListsPageState extends State<MyLists> {
             }
           } else {
             try {
-              final Database database = await _initDatabase();
               await database.update(
                 'lists',
-                {'name': editedName},
+                {
+                  'name': editedName,
+                  'uploaded': (list['uploaded'] != 2) ? 1 : 2,
+                },
                 where: 'id = ?',
                 whereArgs: [list['id']],
               );
+
               setState(() {});
               _listNameController.clear();
             } catch (e) {
@@ -436,6 +576,8 @@ class _ListsPageState extends State<MyLists> {
             ),
           );
 
+          final Database database = await _initDatabase();
+
           if (connected) {
             if (confirmDelete == true) {
               final response = await http.post(
@@ -455,6 +597,13 @@ class _ListsPageState extends State<MyLists> {
                       duration: Duration(seconds: 3),
                     ),
                   );
+
+                  await database.delete(
+                    'lists',
+                    where: 'id = ?',
+                    whereArgs: [list['id']],
+                  );
+
                   setState(() {});
                   _listNameController.clear();
                   // print('Response: ${response.body}');
@@ -481,13 +630,16 @@ class _ListsPageState extends State<MyLists> {
             }
           } else {
             try {
-              final Database database = await _initDatabase();
               await database.update(
                 'lists',
-                {'archive': 1},
+                {
+                  'archive': 1,
+                  'uploaded': (list['uploaded'] != 2) ? 1 : 2,
+                },
                 where: 'id = ?',
                 whereArgs: [list['id']],
               );
+
               setState(() {});
             } catch (e) {
               print('Error inserting list into database: $e');
@@ -575,7 +727,6 @@ class _ListsPageState extends State<MyLists> {
                 } else if (snapshot.hasError) {
                   return Center(child: Text('Error: ${snapshot.error}'));
                 } else if (snapshot.data!.isEmpty) {
-                  // If the user has no lists
                   return const Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -629,21 +780,22 @@ class _ListsPageState extends State<MyLists> {
                                     ),
                                   ),
                                 ),
-                                if (sharedWithCount > 1)
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.group,
-                                          color: Colors.grey, size: 18),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        '($sharedWithCount)',
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.grey,
+                                if (sharedWithCount != null)
+                                  if (sharedWithCount > 0)
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.group,
+                                            color: Colors.grey, size: 18),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          '($sharedWithCount)',
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.grey,
+                                          ),
                                         ),
-                                      ),
-                                    ],
-                                  ),
+                                      ],
+                                    ),
                               ],
                             ),
                             onTap: () {

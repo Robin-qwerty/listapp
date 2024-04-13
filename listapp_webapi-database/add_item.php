@@ -19,7 +19,7 @@ try {
     $user = $statement->fetch(PDO::FETCH_ASSOC);
 
     if ($user) {
-        $query = "INSERT INTO items (`list-id`, item_name) VALUES (?, ?)";
+        $query = "INSERT INTO items (`listid`, item_name) VALUES (?, ?)";
         $statement = $conn->prepare($query);
         $statement->execute([$listId, $itemName]);
         $item = $statement->fetch(PDO::FETCH_ASSOC);
