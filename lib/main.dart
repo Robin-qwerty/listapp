@@ -67,15 +67,7 @@ class _MyAppState extends State<MyApp> {
             if (snapshot.data == true) {
               return MainApp();
             } else {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => LoginPage(),
-                  ),
-                );
-              });
-              return Container();
+              return LoginPage(); // Navigate to login page directly
             }
           }
         },
@@ -94,6 +86,7 @@ class _MyAppState extends State<MyApp> {
     }
   }
 }
+
 
 class MainApp extends StatefulWidget {
   @override
@@ -171,7 +164,7 @@ class _MainAppState extends State<MainApp> {
               },
             )
           : null,
-      drawer: userId != '0'
+      drawer: userId != null
           ? Drawer(
               child: ListView(
                 padding: EdgeInsets.zero,
@@ -182,11 +175,23 @@ class _MainAppState extends State<MainApp> {
                     ),
                     child: Text('Menu'),
                   ),
-                  ListTile(
-                    leading: const Icon(Icons.logout),
-                    title: const Text('Logout'),
-                    onTap: () => _logout(context),
-                  ),
+                  if (userId != '0')
+                    ListTile(
+                      leading: const Icon(Icons.logout),
+                      title: const Text('Logout'),
+                      onTap: () => _logout(context),
+                    ),
+                  if (userId == '0')
+                    ListTile(
+                      leading: const Icon(Icons.login),
+                      title: const Text('Login'),
+                      onTap: () {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(builder: (context) => LoginPage()),
+                        );
+                      },
+                    ),
                 ],
               ),
             )

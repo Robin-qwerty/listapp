@@ -26,6 +26,7 @@ class _ListsPageState extends State<MyAccountlessLists> {
   void initState() {
     super.initState();
     _initDatabase().then((database) {
+      _dumpDatabase(database);
       _database = database;
     });
   }
@@ -61,6 +62,16 @@ class _ListsPageState extends State<MyAccountlessLists> {
     }
   }
 
+  void _dumpDatabase(Database database) async {
+    final List<Map<String, dynamic>> localLists = await database.query('lists');
+    final List<Map<String, dynamic>> localItems = await database.query('items');
+
+    print('Lists:');
+    localLists.forEach((list) => print(list));
+    print('Items:');
+    localItems.forEach((item) => print(item));
+  }
+
   @override
   void dispose() {
     _listNameaddController.dispose();
@@ -83,15 +94,20 @@ class _ListsPageState extends State<MyAccountlessLists> {
       try {
         await _database.insert(
           'lists',
-          {'name': listName},
+          {
+            'name': listName,
+            'uploaded': 2,
+          },
           conflictAlgorithm: ConflictAlgorithm.replace,
         );
+
         messenger.showSnackBar(
           const SnackBar(
             content: Text('List added!'),
             duration: Duration(seconds: 3),
           ),
         );
+
         setState(() {});
         _listNameaddController.clear();
       } catch (e) {
@@ -114,16 +130,85 @@ class _ListsPageState extends State<MyAccountlessLists> {
 
   List<Widget> _buildSlidableActions(
       BuildContext context, Map<String, dynamic> list) {
+    final messenger = ScaffoldMessenger.of(context);
+
     ScaffoldMessenger.of(context);
     return [
       SlidableAction(
-        onPressed: (context) async {},
+        onPressed: (context) async {
+          String? editedName = await showDialog(
+            context: context,
+            builder: (context) {
+              TextEditingController _editListNameController =
+                  TextEditingController(text: list['name']);
+              FocusNode _focusNode = FocusNode();
+
+              void setFocusToEnd() {
+                _focusNode.requestFocus();
+                _editListNameController.selection = TextSelection.fromPosition(
+                    TextPosition(offset: _editListNameController.text.length));
+              }
+
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                setFocusToEnd();
+              });
+
+              return AlertDialog(
+                title: const Text('Edit List Name'),
+                content: TextField(
+                  controller: _editListNameController,
+                  focusNode: _focusNode,
+                  decoration:
+                      const InputDecoration(hintText: 'Enter List Name'),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancel'),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(context, _editListNameController.text);
+                    },
+                    child: const Text('Save'),
+                  ),
+                ],
+              );
+            },
+          );
+
+          final Database database = await _initDatabase();
+          if (editedName != null && editedName.isNotEmpty) {
+            try {
+              await database.update(
+                'lists',
+                {
+                  'name': editedName,
+                },
+                where: 'id = ?',
+                whereArgs: [list['id']],
+              );
+
+              setState(() {});
+              _listNameaddController.clear();
+            } catch (e) {
+              print('Error inserting list into database: $e');
+              messenger.showSnackBar(
+                const SnackBar(
+                  content: Text('Failed to edit list into the local database'),
+                  duration: Duration(seconds: 3),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          }
+        },
         backgroundColor: Colors.orange,
         icon: Icons.create_outlined,
       ),
       SlidableAction(
         onPressed: (context) async {
-          bool confirmDelete = await showDialog(
+          await showDialog(
             context: context,
             builder: (context) => AlertDialog(
               title: const Text('Confirm Delete'),
@@ -144,6 +229,14 @@ class _ListsPageState extends State<MyAccountlessLists> {
                           where: 'id = ?',
                           whereArgs: [list['id']],
                         );
+
+                        messenger.showSnackBar(
+                          const SnackBar(
+                            content: Text('List deleted!'),
+                            duration: Duration(seconds: 3),
+                          ),
+                        );
+
                         setState(() {});
                         Navigator.of(context).pop(true);
                       } catch (error) {

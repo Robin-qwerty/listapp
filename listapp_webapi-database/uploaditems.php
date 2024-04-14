@@ -16,12 +16,10 @@ if (isset($_POST['userId']) && isset($_POST['items'])) {
         if ($row['count'] > 0) {
             foreach ($items as $item) {
                 if ($item['uploaded'] == 2) {
-                    // Create new item
                     $insertQuery = "INSERT INTO items (listid, item_name, archive) VALUES (?, ?, ?)";
                     $insertStatement = $conn->prepare($insertQuery);
                     $insertStatement->execute([$item['listid'], $item['item_name'], $item['archive']]);
                 } else {
-                    // Update existing item
                     $updateQuery = "UPDATE items SET item_name = ?, archive = ? WHERE id = ?";
                     $updateStatement = $conn->prepare($updateQuery);
                     $updateStatement->execute([$item['item_name'], $item['archive'], $item['id']]);

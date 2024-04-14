@@ -34,7 +34,6 @@ class _ListsPageState extends State<MyLists> {
     super.initState();
     _initDatabase().then((database) {
       _dumpDatabase(database);
-      // pr
     });
   }
 
@@ -77,6 +76,7 @@ class _ListsPageState extends State<MyLists> {
     localLists.forEach((list) => print(list));
     print('Items:');
     localItems.forEach((item) => print(item));
+    print('end database');
   }
 
   Future<List<Map<String, dynamic>>>? _checkConnectivityAndFetchLists() async {
@@ -99,6 +99,7 @@ class _ListsPageState extends State<MyLists> {
 
   Future<List<Map<String, dynamic>>> _fetchListsFromLocal() async {
     final Database database = await _initDatabase();
+
     final List<Map<String, dynamic>> localLists = await database.query(
       'lists',
       where: 'archive = 0',
@@ -110,13 +111,35 @@ class _ListsPageState extends State<MyLists> {
     final messenger = ScaffoldMessenger.of(context);
     try {
       final Database database = await _initDatabase();
+
+      // await database.update(
+      //   'lists',
+      //   {
+      //     'uploaded': 2,
+      //   },
+      //   where: 'id = 50',
+      // );
+      // await database.update(
+      //   'items',
+      //   {
+      //     'uploaded': 2,
+      //   },
+      //   where: 'listid = 50',
+      // );
+
       final List<Map<String, dynamic>> localLists = await database.query(
         'lists',
         where: 'uploaded != ?',
         whereArgs: [0],
       );
 
-      if (localLists.isNotEmpty) {
+      final List<Map<String, dynamic>> localItems = await database.query(
+        'items',
+        where: 'uploaded != ?',
+        whereArgs: [0],
+      );
+
+      if (localLists.isNotEmpty || localItems.isNotEmpty) {
         final List<Map<String, dynamic>> listsToSend = localLists.map((list) {
           return {
             'id': list['id'],
@@ -126,57 +149,6 @@ class _ListsPageState extends State<MyLists> {
           };
         }).toList();
 
-        final response = await http.post(
-          Uri.parse(
-              'https://robin.humilis.net/flutter/listapp/uploadlists.php'),
-          body: {
-            'userid': widget.userId,
-            'lists': jsonEncode({'lists': listsToSend}),
-          },
-        );
-
-        if (response.statusCode == 200) {
-          // print(response.body);
-          final responseData = jsonDecode(response.body);
-          if (responseData['success'] == true) {
-            for (final list in localLists) {
-              await database.update(
-                'lists',
-                {'uploaded': 0},
-                where: 'id = ?',
-                whereArgs: [list['id']],
-              );
-              await database.delete('lists', where: 'archive = 1');
-            }
-
-            print('Lists uploaded succesfully to server');
-          } else {
-            messenger.showSnackBar(
-              const SnackBar(
-                content: Text('Something went wrong when uploading lists'),
-                duration: Duration(seconds: 3),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-        } else {
-          messenger.showSnackBar(
-            const SnackBar(
-              content: Text('Something went wrong when uploading lists'),
-              duration: Duration(seconds: 5),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-
-      final List<Map<String, dynamic>> localItems = await database.query(
-        'items',
-        where: 'uploaded != ?',
-        whereArgs: [0],
-      );
-
-      if (localItems.isNotEmpty) {
         final List<Map<String, dynamic>> itemsToSend = localItems.map((item) {
           return {
             'id': item['id'],
@@ -188,18 +160,40 @@ class _ListsPageState extends State<MyLists> {
         }).toList();
 
         final response = await http.post(
-          Uri.parse(
-              'https://robin.humilis.net/flutter/listapp/uploaditems.php'),
+          Uri.parse('https://robin.humilis.net/flutter/listapp/upload.php'),
           body: {
-            'userId': widget.userId,
+            'userid': widget.userId,
+            'lists': jsonEncode({'lists': listsToSend}),
             'items': jsonEncode({'items': itemsToSend}),
           },
         );
 
         if (response.statusCode == 200) {
-          print(response.body);
+          print('Response: ${response.body}');
           final responseData = jsonDecode(response.body);
           if (responseData['success'] == true) {
+            final List<int> changedListIds =
+                List<int>.from(responseData['changedListIds']);
+
+            for (final id in changedListIds) {
+              await database.delete(
+                'lists',
+                where: 'id = ?',
+                whereArgs: [id],
+              );
+            }
+
+            for (final list in localLists) {
+              await database.update(
+                'lists',
+                {'uploaded': 0},
+                where: 'id = ?',
+                whereArgs: [list['id']],
+              );
+              await database.delete('lists', where: 'archive = 1');
+              await database.delete('items', where: 'archive = 2');
+            }
+
             for (final item in localItems) {
               await database.update(
                 'items',
@@ -209,11 +203,21 @@ class _ListsPageState extends State<MyLists> {
               );
             }
 
-            print('Items uploaded successfully to server');
+            await database.delete(
+              'lists',
+              where: 'uploaded = 2',
+            );
+            await database.delete(
+              'items',
+              where: 'uploaded = 2',
+            );
+
+            print('Lists and items uploaded successfully to server');
           } else {
             messenger.showSnackBar(
               const SnackBar(
-                content: Text('Something went wrong when uploading items'),
+                content:
+                    Text('Something went wrong when uploading lists and items'),
                 duration: Duration(seconds: 3),
                 backgroundColor: Colors.red,
               ),
@@ -222,7 +226,8 @@ class _ListsPageState extends State<MyLists> {
         } else {
           messenger.showSnackBar(
             const SnackBar(
-              content: Text('Something went wrong when uploading items'),
+              content:
+                  Text('Something went wrong when uploading lists and items'),
               duration: Duration(seconds: 5),
               backgroundColor: Colors.red,
             ),
@@ -629,28 +634,30 @@ class _ListsPageState extends State<MyLists> {
               }
             }
           } else {
-            try {
-              await database.update(
-                'lists',
-                {
-                  'archive': 1,
-                  'uploaded': (list['uploaded'] != 2) ? 1 : 2,
-                },
-                where: 'id = ?',
-                whereArgs: [list['id']],
-              );
+            if (confirmDelete == true) {
+              try {
+                await database.update(
+                  'lists',
+                  {
+                    'archive': 1,
+                    'uploaded': (list['uploaded'] != 2) ? 1 : 2,
+                  },
+                  where: 'id = ?',
+                  whereArgs: [list['id']],
+                );
 
-              setState(() {});
-            } catch (e) {
-              print('Error inserting list into database: $e');
-              messenger.showSnackBar(
-                const SnackBar(
-                  content: Text(
-                      'Failed to delete list from the local database (offline)'),
-                  duration: Duration(seconds: 3),
-                  backgroundColor: Colors.red,
-                ),
-              );
+                setState(() {});
+              } catch (e) {
+                print('Error inserting list into database: $e');
+                messenger.showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                        'Failed to delete list from the local database (offline)'),
+                    duration: Duration(seconds: 3),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
             }
           }
         },

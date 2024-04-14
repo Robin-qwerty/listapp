@@ -253,7 +253,6 @@ class _MyGroupListsState extends State<MyGroupLists> {
                     itemCount: snapshot.data!.length,
                     itemBuilder: (context, index) {
                       final list = snapshot.data![index];
-                      print(list);
                       final sharedWithCount = list['shared_with_count'];
 
                       return Slidable(

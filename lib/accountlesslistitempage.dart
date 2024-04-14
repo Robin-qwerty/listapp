@@ -150,7 +150,11 @@ class _ListItemsPageState extends State<ListItemsPage> {
     try {
       await _database.insert(
         'items',
-        {'listid': widget.listId, 'item_name': itemName},
+        {
+          'listid': widget.listId,
+          'item_name': itemName,
+          'uploaded': 2,
+        },
       );
       setState(() {});
       _itemNameController.clear();
