@@ -112,21 +112,6 @@ class _ListsPageState extends State<MyLists> {
     try {
       final Database database = await _initDatabase();
 
-      // await database.update(
-      //   'lists',
-      //   {
-      //     'uploaded': 2,
-      //   },
-      //   where: 'id = 50',
-      // );
-      // await database.update(
-      //   'items',
-      //   {
-      //     'uploaded': 2,
-      //   },
-      //   where: 'listid = 50',
-      // );
-
       final List<Map<String, dynamic>> localLists = await database.query(
         'lists',
         where: 'uploaded != ?',

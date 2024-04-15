@@ -250,11 +250,11 @@ class _ListsPageState extends State<MyAccountlessLists> {
                         );
                       }
                     } else {
-                      print('Database is closed. Unable to delete list.');
+                      print('Database is closed. Unable to delete list. try restarting the app.');
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text(
-                              'Database is closed. Unable to delete list.'),
+                              'Database is closed. Unable to delete list. try restarting the app.'),
                           backgroundColor: Colors.red,
                         ),
                       );

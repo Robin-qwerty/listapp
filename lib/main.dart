@@ -2,6 +2,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'accountlesslists.dart';
+import 'settingspage.dart';
 import 'GroupLists.dart';
 import 'login.dart';
 import 'lists.dart';
@@ -67,7 +68,7 @@ class _MyAppState extends State<MyApp> {
             if (snapshot.data == true) {
               return MainApp();
             } else {
-              return LoginPage(); // Navigate to login page directly
+              return LoginPage();
             }
           }
         },
@@ -86,7 +87,6 @@ class _MyAppState extends State<MyApp> {
     }
   }
 }
-
 
 class MainApp extends StatefulWidget {
   @override
@@ -165,7 +165,10 @@ class _MainAppState extends State<MainApp> {
             )
           : null,
       drawer: userId != null
-          ? Drawer(
+    ? Drawer(
+        child: Column(
+          children: [
+            Expanded(
               child: ListView(
                 padding: EdgeInsets.zero,
                 children: <Widget>[
@@ -175,12 +178,18 @@ class _MainAppState extends State<MainApp> {
                     ),
                     child: Text('Menu'),
                   ),
-                  if (userId != '0')
-                    ListTile(
-                      leading: const Icon(Icons.logout),
-                      title: const Text('Logout'),
-                      onTap: () => _logout(context),
-                    ),
+                  ListTile(
+                    leading: const Icon(Icons.settings),
+                    title: const Text('Settings'),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) =>
+                                SettingsPage(userId: userId ?? '')),
+                      );
+                    },
+                  ),
                   if (userId == '0')
                     ListTile(
                       leading: const Icon(Icons.login),
@@ -194,8 +203,17 @@ class _MainAppState extends State<MainApp> {
                     ),
                 ],
               ),
-            )
-          : null,
+            ),
+            if (userId != '0')
+              ListTile(
+                leading: const Icon(Icons.logout),
+                title: const Text('Logout'),
+                onTap: () => _logout(context),
+              ),
+          ],
+        ),
+      )
+    : null,
     );
   }
 }
