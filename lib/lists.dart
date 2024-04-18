@@ -109,158 +109,161 @@ class _ListsPageState extends State<MyLists> {
 
   Future<List<Map<String, dynamic>>> _fetchListsFromWeb() async {
     final messenger = ScaffoldMessenger.of(context);
-    try {
-      final Database database = await _initDatabase();
+    // try {
+    final Database database = await _initDatabase();
 
-      final List<Map<String, dynamic>> localLists = await database.query(
-        'lists',
-        where: 'uploaded != ?',
-        whereArgs: [0],
+    final List<Map<String, dynamic>> localLists = await database.query(
+      'lists',
+      where: 'uploaded != ?',
+      whereArgs: [0],
+    );
+
+    final List<Map<String, dynamic>> localItems = await database.query(
+      'items',
+      where: 'uploaded != ?',
+      whereArgs: [0],
+    );
+
+    if (localLists.isNotEmpty || localItems.isNotEmpty) {
+      final List<Map<String, dynamic>> listsToSend = localLists.map((list) {
+        return {
+          'id': list['id'],
+          'name': list['name'],
+          'archive': list['archive'],
+          'uploaded': list['uploaded'],
+        };
+      }).toList();
+
+      final List<Map<String, dynamic>> itemsToSend = localItems.map((item) {
+        return {
+          'id': item['id'],
+          'listid': item['listid'],
+          'item_name': item['item_name'],
+          'archive': item['archive'],
+          'uploaded': item['uploaded'],
+        };
+      }).toList();
+
+      final response = await http.post(
+        Uri.parse('https://robin.humilis.net/flutter/listapp/upload.php'),
+        body: {
+          'userid': widget.userId,
+          'lists': jsonEncode({'lists': listsToSend}),
+          'items': jsonEncode({'items': itemsToSend}),
+        },
       );
 
-      final List<Map<String, dynamic>> localItems = await database.query(
-        'items',
-        where: 'uploaded != ?',
-        whereArgs: [0],
-      );
+      if (response.statusCode == 200) {
+        print('Response: ${response.body}');
+        final responseData = jsonDecode(response.body);
+        if (responseData['success'] == true) {
+          final List<String> changedListIds =
+              List<String>.from(responseData['changedListIds']);
 
-      if (localLists.isNotEmpty || localItems.isNotEmpty) {
-        final List<Map<String, dynamic>> listsToSend = localLists.map((list) {
-          return {
-            'id': list['id'],
-            'name': list['name'],
-            'archive': list['archive'],
-            'uploaded': list['uploaded'],
-          };
-        }).toList();
-
-        final List<Map<String, dynamic>> itemsToSend = localItems.map((item) {
-          return {
-            'id': item['id'],
-            'listid': item['listid'],
-            'item_name': item['item_name'],
-            'archive': item['archive'],
-            'uploaded': item['uploaded'],
-          };
-        }).toList();
-
-        final response = await http.post(
-          Uri.parse('https://robin.humilis.net/flutter/listapp/upload.php'),
-          body: {
-            'userid': widget.userId,
-            'lists': jsonEncode({'lists': listsToSend}),
-            'items': jsonEncode({'items': itemsToSend}),
-          },
-        );
-
-        if (response.statusCode == 200) {
-          print('Response: ${response.body}');
-          final responseData = jsonDecode(response.body);
-          if (responseData['success'] == true) {
-            final List<int> changedListIds =
-                List<int>.from(responseData['changedListIds']);
-
-            for (final id in changedListIds) {
+          for (final idString in changedListIds) {
+            int? id = int.tryParse(idString);
+            if (id != null) {
               await database.delete(
                 'lists',
                 where: 'id = ?',
                 whereArgs: [id],
               );
+            } else {
+              print('Invalid list ID: $idString');
             }
+          }
 
-            for (final list in localLists) {
-              await database.update(
-                'lists',
-                {'uploaded': 0},
-                where: 'id = ?',
-                whereArgs: [list['id']],
-              );
-              await database.delete('lists', where: 'archive = 1');
-              await database.delete('items', where: 'archive = 2');
-            }
-
-            for (final item in localItems) {
-              await database.update(
-                'items',
-                {'uploaded': 0},
-                where: 'id = ?',
-                whereArgs: [item['id']],
-              );
-            }
-
-            await database.delete(
+          for (final list in localLists) {
+            await database.update(
               'lists',
-              where: 'uploaded = 2',
+              {'uploaded': 0},
+              where: 'id = ?',
+              whereArgs: [list['id']],
             );
-            await database.delete(
-              'items',
-              where: 'uploaded = 2',
-            );
+            await database.delete('lists', where: 'archive = 1');
+            await database.delete('items', where: 'archive = 2');
+          }
 
-            print('Lists and items uploaded successfully to server');
-          } else {
-            messenger.showSnackBar(
-              const SnackBar(
-                content:
-                    Text('Something went wrong when uploading lists and items'),
-                duration: Duration(seconds: 3),
-                backgroundColor: Colors.red,
-              ),
+          for (final item in localItems) {
+            await database.update(
+              'items',
+              {'uploaded': 0},
+              where: 'id = ?',
+              whereArgs: [item['id']],
             );
           }
+
+          await database.delete(
+            'lists',
+            where: 'uploaded = 2',
+          );
+          await database.delete(
+            'items',
+            where: 'uploaded = 2',
+          );
         } else {
           messenger.showSnackBar(
             const SnackBar(
               content:
                   Text('Something went wrong when uploading lists and items'),
-              duration: Duration(seconds: 5),
+              duration: Duration(seconds: 3),
               backgroundColor: Colors.red,
             ),
           );
         }
-      }
-
-      final responselists = await http.post(
-        Uri.parse('https://robin.humilis.net/flutter/listapp/mylist.php'),
-        body: {
-          'userid': widget.userId,
-        },
-      );
-
-      if (responselists.statusCode == 200) {
-        final List<Map<String, dynamic>> webLists =
-            List<Map<String, dynamic>>.from(json.decode(responselists.body));
-
-        for (final list in webLists) {
-          final listWithoutUserId = Map<String, dynamic>.from(list);
-          listWithoutUserId.remove('userid');
-          listWithoutUserId.remove('shared_with_count');
-          await database.insert('lists', listWithoutUserId,
-              conflictAlgorithm: ConflictAlgorithm.ignore);
-        }
-
-        return webLists;
       } else {
         messenger.showSnackBar(
           const SnackBar(
-            content: Text('Failed to load lists'),
-            duration: Duration(seconds: 3),
+            content:
+                Text('Something went wrong when uploading lists and items'),
+            duration: Duration(seconds: 5),
             backgroundColor: Colors.red,
           ),
         );
-        print('Failed to load lists');
-        return [];
       }
-    } catch (e) {
+    }
+
+    final responselists = await http.post(
+      Uri.parse('https://robin.humilis.net/flutter/listapp/mylist.php'),
+      body: {
+        'userid': widget.userId,
+      },
+    );
+
+    if (responselists.statusCode == 200) {
+      final List<Map<String, dynamic>> webLists =
+          List<Map<String, dynamic>>.from(json.decode(responselists.body));
+
+      for (final list in webLists) {
+        final listWithoutUserId = Map<String, dynamic>.from(list);
+        listWithoutUserId.remove('userid');
+        listWithoutUserId.remove('shared_with_count');
+        await database.insert('lists', listWithoutUserId,
+            conflictAlgorithm: ConflictAlgorithm.ignore);
+      }
+
+      return webLists;
+    } else {
       messenger.showSnackBar(
         const SnackBar(
-          content: Text('Something really went wrong. Please try again later.'),
+          content: Text('Failed to load lists'),
           duration: Duration(seconds: 3),
           backgroundColor: Colors.red,
         ),
       );
-      throw e;
+      print('Failed to load lists');
+      return [];
     }
+    // } catch (e) {
+    //   messenger.showSnackBar(
+    //     const SnackBar(
+    //       content: Text('Something really went wrong. Please try again later.'),
+    //       duration: Duration(seconds: 3),
+    //       backgroundColor: Colors.red,
+    //     ),
+    //   );
+    //   throw e;
+    // }
   }
 
   Future<void> _addList(String listName) async {
@@ -568,35 +571,46 @@ class _ListsPageState extends State<MyLists> {
 
           final Database database = await _initDatabase();
 
-          if (connected) {
-            if (confirmDelete == true) {
-              final response = await http.post(
-                Uri.parse(
-                    'https://robin.humilis.net/flutter/listapp/delete_list.php'),
-                body: {
-                  'userId': widget.userId,
-                  'listId': list['id'].toString()
-                },
-              );
-              final responseData = jsonDecode(response.body);
-              if (response.statusCode == 200) {
-                if (responseData['success'] == true) {
-                  messenger.showSnackBar(
-                    const SnackBar(
-                      content: Text('List deleted successfully'),
-                      duration: Duration(seconds: 3),
-                    ),
-                  );
+          try {
+            if (connected) {
+              if (confirmDelete == true) {
+                final response = await http.post(
+                  Uri.parse(
+                      'https://robin.humilis.net/flutter/listapp/delete_list.php'),
+                  body: {
+                    'userId': widget.userId,
+                    'listId': list['id'].toString()
+                  },
+                );
+                final responseData = jsonDecode(response.body);
+                if (response.statusCode == 200) {
+                  if (responseData['success'] == true) {
+                    messenger.showSnackBar(
+                      const SnackBar(
+                        content: Text('List deleted successfully'),
+                        duration: Duration(seconds: 3),
+                      ),
+                    );
 
-                  await database.delete(
-                    'lists',
-                    where: 'id = ?',
-                    whereArgs: [list['id']],
-                  );
+                    await database.delete(
+                      'lists',
+                      where: 'id = ?',
+                      whereArgs: [list['id']],
+                    );
 
-                  setState(() {});
-                  _listNameController.clear();
-                  // print('Response: ${response.body}');
+                    setState(() {});
+                    _listNameController.clear();
+                    // print('Response: ${response.body}');
+                  } else {
+                    messenger.showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                            'Failed to delete this list, Please try again later'),
+                        duration: Duration(seconds: 3),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
                 } else {
                   messenger.showSnackBar(
                     const SnackBar(
@@ -607,43 +621,43 @@ class _ListsPageState extends State<MyLists> {
                     ),
                   );
                 }
-              } else {
-                messenger.showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                        'Failed to delete this list, Please try again later'),
-                    duration: Duration(seconds: 3),
-                    backgroundColor: Colors.red,
-                  ),
-                );
               }
-            }
-          } else {
-            if (confirmDelete == true) {
-              try {
-                await database.update(
-                  'lists',
-                  {
-                    'archive': 1,
-                    'uploaded': (list['uploaded'] != 2) ? 1 : 2,
-                  },
-                  where: 'id = ?',
-                  whereArgs: [list['id']],
-                );
+            } else {
+              if (confirmDelete == true) {
+                try {
+                  await database.update(
+                    'lists',
+                    {
+                      'archive': 1,
+                      'uploaded': (list['uploaded'] != 2) ? 1 : 2,
+                    },
+                    where: 'id = ?',
+                    whereArgs: [list['id']],
+                  );
 
-                setState(() {});
-              } catch (e) {
-                print('Error inserting list into database: $e');
-                messenger.showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                        'Failed to delete list from the local database (offline)'),
-                    duration: Duration(seconds: 3),
-                    backgroundColor: Colors.red,
-                  ),
-                );
+                  setState(() {});
+                } catch (e) {
+                  print('Error inserting list into database: $e');
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                          'Failed to delete list from the local database (offline)'),
+                      duration: Duration(seconds: 3),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
               }
             }
+          } catch (e) {
+            messenger.showSnackBar(
+              const SnackBar(
+                content: Text(
+                    'Something went wrong, Please try again later.'),
+                duration: Duration(seconds: 3),
+                backgroundColor: Colors.red,
+              ),
+            );
           }
         },
         backgroundColor: Colors.red,

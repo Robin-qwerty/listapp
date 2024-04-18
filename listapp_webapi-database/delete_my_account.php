@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 <?php
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
@@ -6,48 +5,58 @@ require_once 'private/dbconnect.php';
 
 // Check if the request is a POST request
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_GET["deleteuser"])) {
-    if (isset($_POST['userId'])) {
+    if (isset($_POST['userId']) && $_GET["deleteuser"] == 'true') {
         $userId = $_POST['userId'];
 
         try {
             // Begin transaction
             $conn->beginTransaction();
 
-            // Delete user from 'users' table
-            $query = "DELETE FROM users WHERE userid = ?";
-            $statement = $conn->prepare($query);
-            $statement->execute([$userId]);
+            try {
+                // Delete user from 'users' table
+                $query = "DELETE FROM users WHERE userid = ?";
+                $statement = $conn->prepare($query);
+                $statement->execute([$userId]);
+            } catch (PDOException $e) {
+            }
 
-            // Delete lists associated with the user from 'lists' table
-            $query = "DELETE FROM lists WHERE userid = ?";
-            $statement = $conn->prepare($query);
-            $statement->execute([$userId]);
+            try {
+                // Delete lists associated with the user from 'lists' table
+                $query = "DELETE FROM lists WHERE userid = ?";
+                $statement = $conn->prepare($query);
+                $statement->execute([$userId]);
+            } catch (PDOException $e) {
+            }
 
-            // Delete items associated with the user from 'items' table
-            $query = "DELETE FROM items WHERE `listid` IN (SELECT id FROM lists WHERE userid = ?)";
-            $statement = $conn->prepare($query);
-            $statement->execute([$userId]);
+            try {
+                // Delete items associated with the user from 'items' table
+                $query = "DELETE FROM items WHERE `listid` IN (SELECT id FROM lists WHERE userid = ?)";
+                $statement = $conn->prepare($query);
+                $statement->execute([$userId]);
+            } catch (PDOException $e) {
+            }
 
-            // Delete tasks associated with the user from 'tasks' table
-            $query = "DELETE FROM tasks WHERE `listid` IN (SELECT id FROM lists WHERE userid = ?)";
-            $statement = $conn->prepare($query);
-            $statement->execute([$userId]);
+            try {
+                // Delete list groups associated with the user from 'listgroup' table
+                $query = "DELETE FROM listgroup WHERE userid = ?";
+                $statement = $conn->prepare($query);
+                $statement->execute([$userId]);
+            } catch (PDOException $e) {
+            }
 
-            // Delete list groups associated with the user from 'listgroup' table
-            $query = "DELETE FROM listgroup WHERE userid = ?";
-            $statement = $conn->prepare($query);
-            $statement->execute([$userId]);
-
-            // Delete list group links associated with the user from 'listgrouplink' table
-            $query = "DELETE FROM listgrouplink WHERE owner = ?";
-            $statement = $conn->prepare($query);
-            $statement->execute([$userId]);
+            try {
+                // Delete list group links associated with the user from 'listgrouplink' table
+                $query = "DELETE FROM listgrouplink WHERE owner = ?";
+                $statement = $conn->prepare($query);
+                $statement->execute([$userId]);
+            } catch (PDOException $e) {
+            }
 
             // Commit transaction
             $conn->commit();
 
             // Respond with success message
-            echo "User account and associated data deleted successfully";
+            echo json_encode(['success' => true]);
         } catch (PDOException $e) {
             // Rollback transaction if any error occurs
             $conn->rollBack();
