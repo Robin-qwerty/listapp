@@ -1,11 +1,11 @@
 # List App
 
-List App is a simple yet powerful mobile application developed using Flutter. It allows users to create, manage, and share lists effortlessly, making it perfect for organizing tasks, groceries, events, and more.
+ListApp is a simple yet powerful mobile application developed using Flutter. It allows users to create, manage, and share lists effortlessly, making it perfect for organizing tasks, groceries, events, and more.
 
 ## Features
 
 - **Create Lists**: Easily create new lists for various purposes such as shopping, to-do tasks, or event planning.
-- **Manage Lists**: Edit, delete, and reorder items within lists for efficient organization.
+- **Manage Lists**: Edit, check and delete items within lists for efficient organization.
 - **Share Lists**: Share lists with friends, family, or colleagues via email, messaging apps, or social media platforms.
 - **User Authentication**: Secure user authentication ensures data privacy and personalized list management.
  
@@ -28,4 +28,4 @@ Here are some screenshot of the app.
 
 ## Pre-release
 
-A pre-release version of List App is available in the repository. You can access it [here](https://github.com/Robin-qwerty/listapp/releases).
+A pre-release version of List App for android is available in the repository. You can access it [here](https://github.com/Robin-qwerty/listapp/releases).
