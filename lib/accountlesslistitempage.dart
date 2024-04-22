@@ -39,6 +39,7 @@ class _ListItemsPageState extends State<ListItemsPage> {
             CREATE TABLE lists (
               id INTEGER PRIMARY KEY,
               name TEXT NOT NULL,
+              last_opened INTEGER DEFAULT 0,
               archive TINYINT NOT NULL DEFAULT 0,
               uploaded TINYINT NOT NULL DEFAULT 0
             )
@@ -48,6 +49,7 @@ class _ListItemsPageState extends State<ListItemsPage> {
               id INTEGER PRIMARY KEY,
               listid INTEGER NOT NULL,
               item_name TEXT NOT NULL,
+              stared TINYINT NOT NULL DEFAULT 0,
               archive TINYINT NOT NULL DEFAULT 0,
               uploaded TINYINT NOT NULL DEFAULT 0
             )
@@ -60,21 +62,18 @@ class _ListItemsPageState extends State<ListItemsPage> {
     }
   }
 
-  @override
-  void dispose() {
-    _itemNameController.dispose();
-    _itemNameFocusNode.dispose();
-    _database.close();
-    super.dispose();
-  }
-
   Future<List<Map<String, dynamic>>> _fetchItems() async {
     await _initDatabase();
-    final List<Map<String, dynamic>> items = await _database.query(
-      'items',
-      where: 'listid = ?',
-      whereArgs: [widget.listId],
-    );
+    final List<Map<String, dynamic>> items = await _database.rawQuery('''
+      SELECT * FROM items WHERE listid = ? 
+      ORDER BY 
+        CASE 
+          WHEN stared = 1 AND archive = 0 THEN 0 
+          WHEN archive = 0 THEN 1
+          ELSE 2
+        END, 
+        id ASC
+    ''', [widget.listId]);
     return items;
   }
 
@@ -194,6 +193,30 @@ class _ListItemsPageState extends State<ListItemsPage> {
     }
   }
 
+  Future<void> _updateItemStared(
+      BuildContext context, int itemId, int staredStatus) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await _database.update(
+        'items',
+        {'stared': staredStatus},
+        where: 'id = ?',
+        whereArgs: [itemId],
+      );
+      setState(() {});
+    } catch (e) {
+      print('Error updating item stared state: $e');
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Failed to update stared state of list item, Please try again later'),
+          duration: Duration(seconds: 3),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   Future<void> _deleteItem(BuildContext context, int itemId) async {
     final messenger = ScaffoldMessenger.of(context);
     try {
@@ -237,6 +260,16 @@ class _ListItemsPageState extends State<ListItemsPage> {
           },
           backgroundColor: Colors.green,
           icon: Icons.check,
+        ),
+        SlidableAction(
+          onPressed: (context) {
+            int newStaredStatus = item['stared'] == 1 ? 0 : 1;
+            _updateItemStared(context, item['id'], newStaredStatus);
+          },
+          backgroundColor: Colors.yellow,
+          icon: item['stared'] == 1
+              ? Icons.star_rate_rounded
+              : Icons.star_border_rounded,
         ),
         SlidableAction(
           onPressed: (context) {
@@ -352,24 +385,37 @@ class _ListItemsPageState extends State<ListItemsPage> {
                         const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
                     child: Slidable(
                       startActionPane: ActionPane(
-                        motion: DrawerMotion(),
+                        motion: const DrawerMotion(),
+                        extentRatio: item['archive'] == 0 ? 0.70 : 0.35,
                         children: _buildSlidableActions(context, item),
                       ),
                       endActionPane: ActionPane(
-                        motion: DrawerMotion(),
+                        motion: const DrawerMotion(),
+                        extentRatio: item['archive'] == 0 ? 0.70 : 0.35,
                         children: _buildSlidableActions(context, item),
                       ),
                       child: ListTile(
                         tileColor: item['archive'] == 1
                             ? Colors.grey[150]
                             : Colors.grey[300],
-                        title: Text(
-                          item['item_name'].toString(),
-                          style: TextStyle(
-                            decoration: item['archive'] == 1
-                                ? TextDecoration.lineThrough
-                                : null,
-                          ),
+                        title: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                item['item_name'].toString(),
+                                style: TextStyle(
+                                  decoration: item['archive'] == 1
+                                      ? TextDecoration.lineThrough
+                                      : null,
+                                ),
+                              ),
+                            ),
+                            if (item['stared'] == 1 && item['archive'] == 0)
+                              const Icon(
+                                Icons.star_rate_rounded,
+                                color: Colors.black,
+                              ),
+                          ],
                         ),
                         leading: Text(
                           '${index + 1}',

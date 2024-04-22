@@ -1,4 +1,4 @@
-package net.humilis.robin
+package com.robin.listapp
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -15,9 +15,7 @@ class MyAccountlessLists extends StatefulWidget {
 
 class _ListsPageState extends State<MyAccountlessLists> {
   final TextEditingController _listNameaddController = TextEditingController();
-  final TextEditingController _listNameeditController = TextEditingController();
   final FocusNode _listNameaddFocusNode = FocusNode();
-  final FocusNode _listNameeditFocusNode = FocusNode();
   bool isLoading = false;
 
   late Database _database;
@@ -41,6 +39,7 @@ class _ListsPageState extends State<MyAccountlessLists> {
             CREATE TABLE lists (
               id INTEGER PRIMARY KEY,
               name TEXT NOT NULL,
+              last_opened INTEGER DEFAULT 0,
               archive TINYINT NOT NULL DEFAULT 0,
               uploaded TINYINT NOT NULL DEFAULT 0
             )
@@ -50,6 +49,7 @@ class _ListsPageState extends State<MyAccountlessLists> {
               id INTEGER PRIMARY KEY,
               listid INTEGER NOT NULL,
               item_name TEXT NOT NULL,
+              stared TINYINT NOT NULL DEFAULT 0,
               archive TINYINT NOT NULL DEFAULT 0,
               uploaded TINYINT NOT NULL DEFAULT 0
             )
@@ -72,19 +72,12 @@ class _ListsPageState extends State<MyAccountlessLists> {
     localItems.forEach((item) => print(item));
   }
 
-  @override
-  void dispose() {
-    _listNameaddController.dispose();
-    _listNameaddFocusNode.dispose();
-    _listNameeditController.dispose();
-    _listNameeditFocusNode.dispose();
-    _database.close();
-    super.dispose();
-  }
-
   Future<List<Map<String, dynamic>>> _fetchLists() async {
     await _initDatabase();
-    final List<Map<String, dynamic>> lists = await _database.query('lists');
+    final List<Map<String, dynamic>> lists = await _database.query(
+      'lists',
+      orderBy: 'last_opened DESC',
+    );
     return lists;
   }
 
@@ -225,6 +218,11 @@ class _ListsPageState extends State<MyAccountlessLists> {
                     if (_database.isOpen) {
                       try {
                         await _database.delete(
+                          'items',
+                          where: 'listid = ?',
+                          whereArgs: [list['id']],
+                        );
+                        await _database.delete(
                           'lists',
                           where: 'id = ?',
                           whereArgs: [list['id']],
@@ -250,7 +248,8 @@ class _ListsPageState extends State<MyAccountlessLists> {
                         );
                       }
                     } else {
-                      print('Database is closed. Unable to delete list. try restarting the app.');
+                      print(
+                          'Database is closed. Unable to delete list. try restarting the app.');
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text(
@@ -378,7 +377,18 @@ class _ListsPageState extends State<MyAccountlessLists> {
                               style: const TextStyle(
                                   fontSize: 16, fontWeight: FontWeight.bold),
                             ),
-                            onTap: () {
+                            onTap: () async {
+                              final Database database = await _initDatabase();
+                              int posixTime =
+                                  DateTime.now().millisecondsSinceEpoch ~/ 1000;
+
+                              await database.update(
+                                'lists',
+                                {'last_opened': posixTime},
+                                where: 'id = ?',
+                                whereArgs: [list['id']],
+                              );
+
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -389,6 +399,7 @@ class _ListsPageState extends State<MyAccountlessLists> {
                                   ),
                                 ),
                               );
+                              setState(() {});
                             },
                           ),
                         ),

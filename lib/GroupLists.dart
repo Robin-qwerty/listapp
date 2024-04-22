@@ -182,6 +182,47 @@ class _MyGroupListsState extends State<MyGroupLists> {
         backgroundColor: Colors.red,
         icon: Icons.exit_to_app,
       ),
+      SlidableAction(
+        onPressed: (context) async {
+            final response = await http.post(
+              Uri.parse(
+                  'https://robin.humilis.net/flutter/listapp/group_user_list.php'),
+              body: {'userId': widget.userId, 'listId': list['id'].toString()},
+            );
+            // print('Response: ${response.body}');
+            if (response.statusCode == 200) {
+              if (response.body == 'success') {
+                messenger.showSnackBar(
+                  const SnackBar(
+                    content: Text('You left the group list successfully.'),
+                    duration: Duration(seconds: 3),
+                  ),
+                );
+              } else {
+                messenger.showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                        'Something went wrong when trying to load group users, Please try again later'),
+                    duration: Duration(seconds: 3),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+              setState(() {});
+            } else {
+              messenger.showSnackBar(
+                const SnackBar(
+                  content: Text(
+                      'Failed to load group users, Please try again later'),
+                  duration: Duration(seconds: 3),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+        },
+        backgroundColor: Colors.blue,
+        icon: Icons.groups,
+      ),
     ];
   }
 

@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost
--- Gegenereerd op: 13 apr 2024 om 13:06
+-- Gegenereerd op: 21 apr 2024 om 14:06
 -- Serverversie: 10.11.3-MariaDB
 -- PHP-versie: 8.2.6
 
@@ -20,6 +20,18 @@ SET time_zone = "+00:00";
 --
 -- Database: `listapp`
 --
+
+-- --------------------------------------------------------
+
+--
+-- Tabelstructuur voor tabel `devices`
+--
+
+CREATE TABLE `devices` (
+  `id` int(11) NOT NULL,
+  `hashed_device_id` varchar(64) NOT NULL,
+  `used` int(11) DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -43,6 +55,7 @@ CREATE TABLE `items` (
   `id` int(11) NOT NULL,
   `listid` int(11) NOT NULL,
   `item_name` varchar(255) NOT NULL,
+  `stared` tinyint(1) NOT NULL DEFAULT 0,
   `archive` tinyint(4) NOT NULL DEFAULT 0 COMMENT '1=crossed out\r\n2=deleted'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -80,6 +93,7 @@ CREATE TABLE `lists` (
   `id` int(11) NOT NULL,
   `userid` int(11) NOT NULL,
   `name` varchar(255) NOT NULL,
+  `last_opened` int(11) NOT NULL DEFAULT 0,
   `archive` tinyint(4) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -115,6 +129,13 @@ CREATE TABLE `users` (
 --
 -- Indexen voor geëxporteerde tabellen
 --
+
+--
+-- Indexen voor tabel `devices`
+--
+ALTER TABLE `devices`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `hashed_device_id` (`hashed_device_id`);
 
 --
 -- Indexen voor tabel `invite`
@@ -161,6 +182,12 @@ ALTER TABLE `users`
 --
 -- AUTO_INCREMENT voor geëxporteerde tabellen
 --
+
+--
+-- AUTO_INCREMENT voor een tabel `devices`
+--
+ALTER TABLE `devices`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT voor een tabel `invite`

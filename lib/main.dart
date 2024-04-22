@@ -1,7 +1,11 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:device_info/device_info.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
+import 'package:crypto/crypto.dart';
 import 'accountlesslists.dart';
+import 'dart:convert';
 import 'settingspage.dart';
 import 'GroupLists.dart';
 import 'login.dart';
@@ -33,7 +37,29 @@ final router = GoRouter(
 void deleteUserId() async {
   final storage = FlutterSecureStorage();
   await storage.delete(key: 'userId');
-  print("deleteUserId");
+}
+
+Future<void> printDeviceId() async {
+  final DeviceInfoPlugin deviceInfoPlugin = DeviceInfoPlugin();
+  AndroidDeviceInfo androidInfo;
+  try {
+    androidInfo = await deviceInfoPlugin.androidInfo;
+    final deviceId = androidInfo.androidId;
+
+    final hashedDeviceId = sha256.convert(utf8.encode(deviceId)).toString();
+    print('Device ID: $hashedDeviceId');
+    final response = await http.post(
+      Uri.parse('https://robin.humilis.net/flutter/listapp/devices.php'),
+      body: {'hashedDeviceId': hashedDeviceId},
+    );
+
+    if (response.statusCode == 200) {
+    } else {
+      print('Failed to send Hashed Device ID: ${response.statusCode}');
+    }
+  } catch (e) {
+    print('Error retrieving device info: $e');
+  }
 }
 
 class MyApp extends StatefulWidget {
@@ -77,6 +103,7 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<bool> _checkLoggedIn() async {
+    printDeviceId();
     try {
       final userId = await storage.read(key: 'userId');
       print('User ID from secure storage: $userId');
@@ -165,55 +192,56 @@ class _MainAppState extends State<MainApp> {
             )
           : null,
       drawer: userId != null
-    ? Drawer(
-        child: Column(
-          children: [
-            Expanded(
-              child: ListView(
-                padding: EdgeInsets.zero,
-                children: <Widget>[
-                  const DrawerHeader(
-                    decoration: BoxDecoration(
-                      color: Colors.blue,
+          ? Drawer(
+              child: Column(
+                children: [
+                  Expanded(
+                    child: ListView(
+                      padding: EdgeInsets.zero,
+                      children: <Widget>[
+                        const DrawerHeader(
+                          decoration: BoxDecoration(
+                            color: Colors.blue,
+                          ),
+                          child: Text('Menu'),
+                        ),
+                        ListTile(
+                          leading: const Icon(Icons.settings),
+                          title: const Text('Settings'),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) =>
+                                      SettingsPage(userId: userId ?? '')),
+                            );
+                          },
+                        ),
+                        if (userId == '0')
+                          ListTile(
+                            leading: const Icon(Icons.login),
+                            title: const Text('Login'),
+                            onTap: () {
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (context) => LoginPage()),
+                              );
+                            },
+                          ),
+                      ],
                     ),
-                    child: Text('Menu'),
                   ),
-                  ListTile(
-                    leading: const Icon(Icons.settings),
-                    title: const Text('Settings'),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) =>
-                                SettingsPage(userId: userId ?? '')),
-                      );
-                    },
-                  ),
-                  if (userId == '0')
+                  if (userId != '0')
                     ListTile(
-                      leading: const Icon(Icons.login),
-                      title: const Text('Login'),
-                      onTap: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(builder: (context) => LoginPage()),
-                        );
-                      },
+                      leading: const Icon(Icons.logout),
+                      title: const Text('Logout'),
+                      onTap: () => _logout(context),
                     ),
                 ],
               ),
-            ),
-            if (userId != '0')
-              ListTile(
-                leading: const Icon(Icons.logout),
-                title: const Text('Logout'),
-                onTap: () => _logout(context),
-              ),
-          ],
-        ),
-      )
-    : null,
+            )
+          : null,
     );
   }
 }

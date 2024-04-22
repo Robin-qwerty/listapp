@@ -1,6 +1,12 @@
 <?php
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    exit();
+}
+
 require_once 'private/dbconnect.php';
 
 if (isset($_POST['userId']) && isset($_POST['groupCode'])) {

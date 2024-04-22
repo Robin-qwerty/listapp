@@ -1,10 +1,10 @@
-import 'dart:convert';
-
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter/material.dart';
-import 'login.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'login.dart';
 
 class SettingsPage extends StatelessWidget {
   final String? userId;
@@ -37,7 +37,16 @@ class SettingsPage extends StatelessWidget {
                     ),
                   );
                 },
-                child: const Text('Account'),
+                child: const Center(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.account_circle_outlined),
+                      SizedBox(width: 8),
+                      Text('Account'),
+                    ],
+                  ),
+                ),
               ),
             ElevatedButton(
               onPressed: () {
@@ -48,7 +57,32 @@ class SettingsPage extends StatelessWidget {
                   ),
                 );
               },
-              child: const Text('Local Lists and Items'),
+              child: const Center(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.format_list_bulleted_outlined),
+                    SizedBox(width: 8),
+                    Text('Local Lists and Items'),
+                  ],
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                const url = 'https://robin.humilis.net/listapp/report_bug';
+                launch(url);
+              },
+              child: const Center(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.bug_report_outlined),
+                    SizedBox(width: 8),
+                    Text('Report a bug'),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
@@ -193,7 +227,9 @@ class LocalListsAndItemsPage extends StatelessWidget {
                     await clearLocalDatabase();
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Local database cleared successfully.'),
+                        content: Text(
+                            'Local database cleared successfully. You might have to restart the app for it to take effect.'),
+                        duration: Duration(seconds: 8),
                       ),
                     );
                   }
@@ -229,6 +265,7 @@ class LocalListsAndItemsPage extends StatelessWidget {
             CREATE TABLE lists (
               id INTEGER PRIMARY KEY,
               name TEXT NOT NULL,
+              last_opened INTEGER DEFAULT 0,
               archive TINYINT NOT NULL DEFAULT 0,
               uploaded TINYINT NOT NULL DEFAULT 0
             )
@@ -238,6 +275,7 @@ class LocalListsAndItemsPage extends StatelessWidget {
               id INTEGER PRIMARY KEY,
               listid INTEGER NOT NULL,
               item_name TEXT NOT NULL,
+              stared TINYINT NOT NULL DEFAULT 0,
               archive TINYINT NOT NULL DEFAULT 0,
               uploaded TINYINT NOT NULL DEFAULT 0
             )

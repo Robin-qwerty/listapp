@@ -1,6 +1,12 @@
 <?php
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    exit();
+}
+
 require_once 'private/dbconnect.php';
 
 if (isset($_POST['userid']) && isset($_POST['lists']) && isset($_POST['items'])) {
@@ -24,15 +30,15 @@ if (isset($_POST['userid']) && isset($_POST['lists']) && isset($_POST['items']))
                 if ($list['uploaded'] == 2) {
                     $previousListId = $list['id'];
 
-                    $insertQuery = "INSERT INTO lists (userid, name, archive) VALUES (?, ?, ?)";
+                    $insertQuery = "INSERT INTO lists (userid, name, last_opened, archive) VALUES (?, ?, ?, ?)";
                     $insertStatement = $conn->prepare($insertQuery);
-                    $insertStatement->execute([$userId, $list['name'], $list['archive']]);
+                    $insertStatement->execute([$userId, $list['name'], $list['last_opened'], $list['archive']]);
 
                     $lastInsertedListId = $conn->lastInsertId();
                 } else {
-                    $updateQuery = "UPDATE lists SET name = ?, archive = ? WHERE id = ?";
+                    $updateQuery = "UPDATE lists SET name = ?, last_opened = ?, archive = ? WHERE id = ?";
                     $updateStatement = $conn->prepare($updateQuery);
-                    $updateStatement->execute([$list['name'], $list['archive'], $list['id']]);
+                    $updateStatement->execute([$list['name'], $list['last_opened'], $list['archive'], $list['id']]);
                 }
 
                 foreach ($items as &$item) {

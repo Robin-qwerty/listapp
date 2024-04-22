@@ -49,6 +49,7 @@ class _ListItemsPageState extends State<ListItemsPage> {
             CREATE TABLE lists (
               id INTEGER PRIMARY KEY,
               name TEXT NOT NULL,
+              last_opened INTEGER DEFAULT 0,
               archive TINYINT NOT NULL DEFAULT 0,
               uploaded TINYINT NOT NULL DEFAULT 0
             )
@@ -58,6 +59,7 @@ class _ListItemsPageState extends State<ListItemsPage> {
               id INTEGER PRIMARY KEY,
               listid INTEGER NOT NULL,
               item_name TEXT NOT NULL,
+              stared TINYINT NOT NULL DEFAULT 0,
               archive TINYINT NOT NULL DEFAULT 0,
               uploaded TINYINT NOT NULL DEFAULT 0
             )
@@ -82,18 +84,22 @@ class _ListItemsPageState extends State<ListItemsPage> {
 
   Future<List<Map<String, dynamic>>> _fetchItemsFromLocal() async {
     final Database database = await _initDatabase();
-    final List<Map<String, dynamic>> localItems = await database.query(
-      'items',
-      where: 'listid = ? and archive != 2',
-      whereArgs: [widget.listId],
-      orderBy: 'archive ASC',
-    );
+    final List<Map<String, dynamic>> localItems = await database.rawQuery('''
+      SELECT * FROM items WHERE listid = ? AND archive != 2
+      ORDER BY 
+        CASE 
+          WHEN stared = 1 AND archive = 0 THEN 0 
+          WHEN archive = 0 THEN 1
+          ELSE 2
+        END, 
+        id ASC
+    ''', [widget.listId]);
     return localItems;
   }
 
   Future<List<Map<String, dynamic>>> _fetchItems() async {
     final Database database = await _initDatabase();
-    final messenger = ScaffoldMessenger.of(context);
+    ScaffoldMessenger.of(context);
 
     try {
       final response = await http.post(
@@ -118,13 +124,8 @@ class _ListItemsPageState extends State<ListItemsPage> {
         throw Exception('Failed to load items');
       }
     } catch (e) {
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Something really went wrong. Please try again later.'),
-          duration: Duration(seconds: 3),
-          backgroundColor: Colors.red,
-        ),
-      );
+      connected = false;
+      setState(() {});
       throw e;
     }
   }
@@ -154,56 +155,63 @@ class _ListItemsPageState extends State<ListItemsPage> {
             ),
             TextButton(
               onPressed: () async {
+                Navigator.pop(context);
                 if (connected) {
-                  Navigator.pop(context);
-                  final response = await http.post(
-                    Uri.parse(
-                        'https://robin.humilis.net/flutter/listapp/list_items.php'),
-                    body: {
-                      'userId': widget.userId,
-                      'itemId': itemId.toString(),
-                      'itemName': itemNameController.text
-                    },
-                  );
-                  // print('Response: ${response.body}');
-                  if (response.statusCode == 200) {
-                    setState(() {});
-                  } else {
-                    messenger.showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                            'Failed to add list item, Please try again later'),
-                        duration: Duration(seconds: 3),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                } else {
-                  Navigator.pop(context);
                   try {
-                    final Database database = await _initDatabase();
-                    await database.update(
-                      'items',
-                      {
-                        'item_name': itemNameController.text,
-                        'uploaded': (item['uploaded'] != 2) ? 1 : 2,
+                    final response = await http.post(
+                      Uri.parse(
+                          'https://robin.humilis.net/flutter/listapp/list_items.php'),
+                      body: {
+                        'userId': widget.userId,
+                        'itemId': itemId.toString(),
+                        'itemName': itemNameController.text
                       },
-                      where: 'id = ?',
-                      whereArgs: [itemId],
                     );
+                    // print('Response: ${response.body}');
 
-                    setState(() {});
+                    if (response.statusCode == 200) {
+                      setState(() {});
+                    } else {
+                      messenger.showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                              'Failed to edit list item, Please try again later'),
+                          duration: Duration(seconds: 3),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
                   } catch (e) {
-                    print('Error updating list item name in database: $e');
-                    messenger.showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                            'Failed to update list item name in the local database (offline)'),
-                        duration: Duration(seconds: 3),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
+                    connected = false;
+                    setState(() {});
+                    throw e;
                   }
+                }
+
+                try {
+                  final Database database = await _initDatabase();
+                  await database.update(
+                    'items',
+                    {
+                      'item_name': itemNameController.text,
+                      'uploaded':
+                          (item['uploaded'] == 2) ? 2 : (connected ? 0 : 1),
+                    },
+                    where: 'id = ?',
+                    whereArgs: [itemId],
+                  );
+
+                  setState(() {});
+                } catch (e) {
+                  print('Error updating list item name in database: $e');
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                          'Failed to update list item name in the local database (offline)'),
+                      duration: Duration(seconds: 3),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
                 }
               },
               child: const Text('Save'),
@@ -277,6 +285,61 @@ class _ListItemsPageState extends State<ListItemsPage> {
     }
   }
 
+  Future<void> _updateItemStared(
+      BuildContext context, int itemId, int staredStatus, item) async {
+    final Database database = await _initDatabase();
+    final messenger = ScaffoldMessenger.of(context);
+
+    if (connected) {
+      final response = await http.post(
+        Uri.parse('https://robin.humilis.net/flutter/listapp/list_items.php'),
+        body: {
+          'userId': widget.userId,
+          'itemId': itemId.toString(),
+          'staredStatus': staredStatus.toString()
+        },
+      );
+      // print('Response: ${response.body}');
+
+      if (response.statusCode == 200) {
+        setState(() {});
+      } else {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Something went wrong, Please try again later'),
+            duration: Duration(seconds: 3),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+
+    try {
+      await database.update(
+        'items',
+        {
+          'stared': staredStatus,
+          'uploaded': (item['uploaded'] == 2) ? 2 : (connected ? 0 : 1),
+        },
+        where: 'id = ?',
+        whereArgs: [itemId],
+      );
+
+      setState(() {});
+    } catch (e) {
+      print(
+          'Error updating archive status or stared state of list item in database: $e');
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Failed to update archive status or stared state of list item in the local database (offline)'),
+          duration: Duration(seconds: 3),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   List<Widget> _buildSlidableActions(
       BuildContext context, Map<String, dynamic> item) {
     final messenger = ScaffoldMessenger.of(context);
@@ -299,6 +362,16 @@ class _ListItemsPageState extends State<ListItemsPage> {
           },
           backgroundColor: Colors.green,
           icon: Icons.check,
+        ),
+        SlidableAction(
+          onPressed: (context) {
+            int newStaredStatus = item['stared'] == 1 ? 0 : 1;
+            _updateItemStared(context, item['id'], newStaredStatus, item);
+          },
+          backgroundColor: Colors.yellow,
+          icon: item['stared'] == 1
+              ? Icons.star_rate_rounded
+              : Icons.star_border_rounded,
         ),
         SlidableAction(
           onPressed: (context) {
@@ -358,7 +431,7 @@ class _ListItemsPageState extends State<ListItemsPage> {
               messenger.showSnackBar(
                 const SnackBar(
                   content:
-                      Text('Failed to add list item, Please try again later'),
+                      Text('Failed to add list item, Please try again later1'),
                   duration: Duration(seconds: 3),
                   backgroundColor: Colors.red,
                 ),
@@ -368,7 +441,7 @@ class _ListItemsPageState extends State<ListItemsPage> {
             messenger.showSnackBar(
               const SnackBar(
                 content:
-                    Text('Failed to add list item, Please try again later'),
+                    Text('Failed to add list item, Please try again later2'),
                 duration: Duration(seconds: 3),
                 backgroundColor: Colors.red,
               ),
@@ -377,40 +450,40 @@ class _ListItemsPageState extends State<ListItemsPage> {
         } catch (e) {
           messenger.showSnackBar(
             const SnackBar(
-              content: Text('Failed to add list item, Please try again later'),
+              content: Text('Failed to add list item, Please try again later3'),
               duration: Duration(seconds: 3),
               backgroundColor: Colors.red,
             ),
           );
           print('Error: $e');
         }
-      } else {
-        try {
-          final Database database = await _initDatabase();
-          await database.insert(
-            'items',
-            {
-              'listid': widget.listId,
-              'item_name': itemName,
-              'archive': 0,
-              'uploaded': 2,
-            },
-            conflictAlgorithm: ConflictAlgorithm.ignore,
-          );
+      }
 
-          setState(() {});
-          _itemNameController.clear();
-        } catch (e) {
-          print('Error inserting list item into database: $e');
-          messenger.showSnackBar(
-            const SnackBar(
-              content: Text(
-                  'Failed to insert list item in the local database (offline)'),
-              duration: Duration(seconds: 3),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
+      try {
+        final Database database = await _initDatabase();
+        await database.insert(
+          'items',
+          {
+            'listid': widget.listId,
+            'item_name': itemName,
+            'archive': 0,
+            'uploaded': connected ? 0 : 2,
+          },
+          conflictAlgorithm: ConflictAlgorithm.ignore,
+        );
+
+        setState(() {});
+        _itemNameController.clear();
+      } catch (e) {
+        print('Error inserting list item into database: $e');
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text(
+                'Failed to insert list item in the local database (offline)'),
+            duration: Duration(seconds: 3),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
 
@@ -493,24 +566,37 @@ class _ListItemsPageState extends State<ListItemsPage> {
                         const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
                     child: Slidable(
                       startActionPane: ActionPane(
-                        motion: DrawerMotion(),
+                        motion: const DrawerMotion(),
+                        extentRatio: item['archive'] == 0 ? 0.70 : 0.35,
                         children: _buildSlidableActions(context, item),
                       ),
                       endActionPane: ActionPane(
-                        motion: DrawerMotion(),
+                        motion: const DrawerMotion(),
+                        extentRatio: item['archive'] == 0 ? 0.70 : 0.35,
                         children: _buildSlidableActions(context, item),
                       ),
                       child: ListTile(
                         tileColor: item['archive'] == 1
                             ? Colors.grey[150]
                             : Colors.grey[300],
-                        title: Text(
-                          item['item_name'].toString(),
-                          style: TextStyle(
-                            decoration: item['archive'] == 1
-                                ? TextDecoration.lineThrough
-                                : null,
-                          ),
+                        title: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                item['item_name'].toString(),
+                                style: TextStyle(
+                                  decoration: item['archive'] == 1
+                                      ? TextDecoration.lineThrough
+                                      : null,
+                                ),
+                              ),
+                            ),
+                            if (item['stared'] == 1 && item['archive'] == 0)
+                              const Icon(
+                                Icons.star_rate_rounded,
+                                color: Colors.black,
+                              ),
+                          ],
                         ),
                         leading: Text(
                           '${index + 1}',
